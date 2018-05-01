@@ -274,6 +274,7 @@ func (bot *BotAPI) GetMe() (User, error) {
 
 	var user User
 	json.Unmarshal(resp.Result, &user)
+	user.UserName = strconv.Itoa(user.ID)
 
 	bot.debugLog("getMe", nil, user)
 
@@ -476,6 +477,7 @@ func (bot *BotAPI) GetUpdates(config UpdateConfig) ([]Update, error) {
 			Message: &Message {
 				From: &User {
 					ID: updatejson.UserID,
+					UserName: strconv.Itoa(updatejson.UserID),
 					Nickname: nickname,
 					Cardname: "",
 				},

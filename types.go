@@ -69,6 +69,7 @@ func (ch UpdatesChannel) Clear() {
 // User is a user on Telegram.
 type User struct {
 	ID           int    `json:"user_id"`
+	UserName	 string `json:"-"`
 	Nickname     string `json:"nickname"`
 	Cardname     string `json:"cardname"`
 }
