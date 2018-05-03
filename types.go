@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/catsworld/cqhttp-go-sdk/cq"
 )
 
 // APIResponse is a response from the Telegram API with the result
@@ -83,6 +85,10 @@ func (u *User) String() string {
 		return u.Cardname
 	}
 	return u.Nickname
+}
+
+func (u *User) At() string {
+	return cq.At(u.UserName)
 }
 
 // GroupChat is a group chat.

@@ -486,9 +486,9 @@ func (bot *BotAPI) GetUpdates(config UpdateConfig) ([]Update, error) {
 			},
 		}
 	}
-
 	var updates []Update
 	updates = append(updates, update)
+	
 	bot.debugLog("getUpdates", v, updates)
 	return updates, nil
 }
