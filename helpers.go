@@ -6,12 +6,10 @@ package qqbotapi
 func NewMessage(chatID int64, sendType string, text string) MessageConfig {
 	return MessageConfig{
 		BaseChat: BaseChat{
-			ChatID:           chatID,
-			ReplyToMessageID: 0,
+			ChatID: chatID,
 		},
 		SendType: sendType,
 		Text:     text,
-		DisableWebPagePreview: false,
 	}
 }
 

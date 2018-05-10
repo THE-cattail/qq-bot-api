@@ -1,7 +1,10 @@
+// Package qqbotapi has functions and types used for interacting with
+// the Coolq HTTP API.
 package qqbotapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -11,8 +14,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/juzi5201314/cqhttp-go-sdk/cq"
 )
 
+// BotAPI allows you to interact with the Coolq HTTP API.
 type BotAPI struct {
 	Token  string `json:"token"`
 	Debug  bool   `json:"debug"`
@@ -24,17 +30,26 @@ type BotAPI struct {
 	PollEndpoint string       `json:"-"`
 }
 
-func NewBotAPI(token string, apiEndPoint string, pollEndpoint string) (*BotAPI, error) {
-	return NewBotAPIWithClient(token, apiEndPoint, pollEndpoint, &http.Client{})
+// NewBotAPI creates a new BotAPI instance.
+//
+// It requires a token, an API endpoint and a poll endpoint which you
+// set in Coolq HTTP API.
+func NewBotAPI(token string, api string, poll string) (*BotAPI, error) {
+	return NewBotAPIWithClient(token, api, poll, &http.Client{})
 }
 
-func NewBotAPIWithClient(token string, apiEndPoint string, pollEndpoint string, client *http.Client) (*BotAPI, error) {
+// NewBotAPIWithClient creates a new BotAPI instance
+// and allows you to pass a http.Client.
+//
+// It requires a token, an API endpoint and a poll endpoint which you
+// set in Coolq HTTP API.
+func NewBotAPIWithClient(token string, api string, poll string, client *http.Client) (*BotAPI, error) {
 	bot := &BotAPI{
 		Token:        token,
 		Client:       client,
 		Buffer:       100,
-		APIEndpoint:  apiEndPoint,
-		PollEndpoint: pollEndpoint,
+		APIEndpoint:  api,
+		PollEndpoint: poll,
 	}
 
 	self, err := bot.GetMe()
@@ -47,6 +62,7 @@ func NewBotAPIWithClient(token string, apiEndPoint string, pollEndpoint string, 
 	return bot, nil
 }
 
+// MakeRequest makes a request to a specific endpoint with our token.
 func (bot *BotAPI) MakeRequest(endpoint string, params url.Values) (APIResponse, error) {
 	if endpoint == "get_updates" {
 		method := fmt.Sprintf(bot.PollEndpoint, endpoint)
@@ -67,22 +83,29 @@ func (bot *BotAPI) MakeRequest(endpoint string, params url.Values) (APIResponse,
 			log.Printf("%s resp: %s", endpoint, bytes)
 		}
 
-		if len(pollResp.Events) == 0 {
-			return APIResponse{}, err
-		}
-		result := strings.Replace(string(pollResp.Events[0].Data), "\\\"", "\"", -1)
-		apiResp := APIResponse{
-			Result: json.RawMessage(result[1 : len(result)-1]),
-		}
-		if pollResp.Events[0].Error == "" {
-			apiResp.Ok = "ok"
-		} else {
-			apiResp.Ok = pollResp.Events[0].Error
+		if pollResp.Error != "" {
+			return APIResponse{}, errors.New(pollResp.Error)
 		}
 
-		if apiResp.Ok != "ok" {
-			parameters := ResponseParameters{}
-			return apiResp, Error{apiResp.Ok, parameters}
+		if len(pollResp.Events) == 0 {
+			return APIResponse{}, errors.New("No poll events get")
+		}
+
+		var eventResp PollEvent
+		json.Unmarshal(pollResp.Events[0], &eventResp)
+
+		s := string(eventResp.Data)
+		for i := 0; i < len(s); i++ {
+			if s[i] == '\\' {
+				s = s[:i] + s[i+1:]
+			}
+		}
+		s = s[1 : len(s)-1]
+		s = "[" + s + "]"
+		apiResp := APIResponse{
+			Status:  "ok",
+			RetCode: 0,
+			Data:    json.RawMessage(s),
 		}
 
 		return apiResp, nil
@@ -105,9 +128,8 @@ func (bot *BotAPI) MakeRequest(endpoint string, params url.Values) (APIResponse,
 		log.Printf("%s resp: %s", endpoint, bytes)
 	}
 
-	if apiResp.Ok != "ok" {
-		parameters := ResponseParameters{}
-		return apiResp, Error{apiResp.Ok, parameters}
+	if apiResp.Status != "ok" {
+		return apiResp, errors.New(apiResp.Status + " " + strconv.Itoa(apiResp.RetCode))
 	}
 
 	return apiResp, nil
@@ -162,13 +184,18 @@ func (bot *BotAPI) makeMessageRequest(endpoint string, params url.Values) (Messa
 	}
 
 	var message Message
-	json.Unmarshal(resp.Result, &message)
+	json.Unmarshal(resp.Data, &message)
 
 	bot.debugLog(endpoint, params, message)
 
 	return message, nil
 }
 
+// GetMe fetches the currently authenticated bot.
+//
+// This method is called upon creation to validate the token,
+// and so you may get this data from BotAPI.Self without the need for
+// another request.
 func (bot *BotAPI) GetMe() (User, error) {
 	resp, err := bot.MakeRequest("get_login_info", nil)
 	if err != nil {
@@ -176,23 +203,25 @@ func (bot *BotAPI) GetMe() (User, error) {
 	}
 
 	var user User
-	json.Unmarshal(resp.Result, &user)
-	user.UserName = strconv.Itoa(user.ID)
+	json.Unmarshal(resp.Data, &user)
 
 	bot.debugLog("getMe", nil, user)
 
 	return user, nil
 }
 
+// IsMessageToMe returns true if message directed to this bot.
+//
+// It requires the Message.
 func (bot *BotAPI) IsMessageToMe(message Message) bool {
-	return strings.Contains(message.Text, "@"+bot.Self.Nickname)
+	return strings.Contains(message.Text, cq.At(strconv.Itoa(bot.Self.ID)))
 }
 
+// Send will send a Chattable item to Coolq.
+//
+// It requires the Chattable to send.
 func (bot *BotAPI) Send(c Chattable) (Message, error) {
-	switch c.(type) {
-	default:
-		return bot.sendChattable(c)
-	}
+	return bot.sendChattable(c)
 }
 
 func (bot *BotAPI) debugLog(context string, v url.Values, message interface{}) {
@@ -217,6 +246,12 @@ func (bot *BotAPI) sendChattable(config Chattable) (Message, error) {
 	return message, nil
 }
 
+// GetUpdates fetches updates.
+//
+// Offset, Limit, and Timeout are optional.
+// To avoid stale items, set Offset to one higher than the previous item.
+// Set Timeout to a large number to reduce requests so you can get updates
+// instantly instead of having to wait between requests.
 func (bot *BotAPI) GetUpdates(config UpdateConfig) ([]Update, error) {
 	v := url.Values{}
 	if config.Offset != 0 {
@@ -234,54 +269,53 @@ func (bot *BotAPI) GetUpdates(config UpdateConfig) ([]Update, error) {
 		return []Update{}, err
 	}
 
-	var updatejson UpdateJson
-	json.Unmarshal(resp.Result, &updatejson)
-
-	var update Update
-	if updatejson.PostType == "message" {
-		chat := &Chat{
-			Type: updatejson.MessageType,
+	var updates []Update
+	json.Unmarshal(resp.Data, &updates)
+	for i := 0; i < len(updates); i++ {
+		chat := Chat{
+			Type: updates[i].MessageType,
 		}
-		if updatejson.MessageType == "private" {
-			chat.ID = int64(updatejson.UserID)
-		} else if updatejson.MessageType == "group" {
-			chat.ID = int64(updatejson.GroupID)
-		} else {
-			chat.ID = int64(updatejson.DiscussID)
+		if chat.IsPrivate() {
+			chat.ID = int64(updates[i].UserID)
+		}
+		if chat.IsGroup() {
+			chat.ID = int64(updates[i].GroupID)
+		}
+		if chat.IsDiscuss() {
+			chat.ID = int64(updates[i].DiscussID)
 		}
 		v := url.Values{}
-		v.Add("user_id", strconv.Itoa(updatejson.UserID))
+		v.Add("user_id", strconv.Itoa(updates[i].UserID))
 		resp, err := bot.MakeRequest("get_stranger_info", v)
-		nickname := ""
 		if err != nil {
-			log.Println(err)
-		} else {
-			var user User
-			json.Unmarshal(resp.Result, &user)
-			nickname = user.Nickname
+			return []Update{}, err
 		}
-		update = Update{
-			UpdateID: updatejson.MessageID,
-			Message: &Message{
-				From: &User{
-					ID:       updatejson.UserID,
-					UserName: strconv.Itoa(updatejson.UserID),
-					Nickname: nickname,
-					Cardname: "",
-				},
-				Text: updatejson.Message,
-				Chat: chat,
-			},
+		if chat.Type == "group" {
+			v := url.Values{}
+			v.Add("group_id", strconv.Itoa(updates[i].GroupID))
+			v.Add("user_id", strconv.Itoa(updates[i].UserID))
+			resp, err = bot.MakeRequest("get_group_member_info", v)
+			if err != nil {
+				return []Update{}, err
+			}
+		}
+		var user User
+		json.Unmarshal(resp.Data, &user)
+		updates[i].UpdateID = updates[i].MessageID
+		updates[i].Message = &Message{
+			MessageID: updates[i].MessageID,
+			From:      &user,
+			Chat:      &chat,
+			Text:      updates[i].Text,
 		}
 	}
-	var updates []Update
-	updates = append(updates, update)
 
-	bot.debugLog("get_updates", v, updates)
+	bot.debugLog("getUpdates", v, updates)
 
 	return updates, nil
 }
 
+// GetUpdatesChan starts and returns a channel for getting updates.
 func (bot *BotAPI) GetUpdatesChan(config UpdateConfig) (UpdatesChannel, error) {
 	ch := make(chan Update, bot.Buffer)
 
