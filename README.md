@@ -4,8 +4,7 @@
 
 基于 `github.com/go-telegram-bot-api/telegram-bot-api` 修改。
 
-必须使用 `github.com/catsworld/cqhttp-longpoll-server` 搭建长轮询服务
-（也可以自行搭建与 `github.com/jcuga/golongpoll` 发布数据格式相同的长轮询服务）
+基于 `github.com/catsworld/cqhttp-longpoll-server` 搭建长轮询服务。
 
 ## 示例
 
@@ -20,7 +19,7 @@ import (
 )
 
 func main() {
-    bot, err := qqbotapi.NewBotAPI("MyAwesomeBotToken", "MyAPIEndpoint", "MyLongpollServerEndpoint")
+    bot, err := qqbotapi.NewBotAPI("MyAwesomeBotToken", "MyAPIEndpoint")
     if err != nil {
         log.Panic(err)
     }

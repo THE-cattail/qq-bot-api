@@ -9,22 +9,7 @@ import (
 type APIResponse struct {
 	Status  string          `json:"status"`
 	Data    json.RawMessage `json:"data"`
-	RetCode int             `json:"retcode"`
-}
-
-// PollEvent is a event from the poll response.
-type PollEvent struct {
-	Timestamp int64           `json:"timestamp"`
-	Category  string          `json:"category"`
-	Data      json.RawMessage `json:"data"`
-}
-
-// PollResponse is a poll response from the Coolq HTTP API with the result
-// stored raw.
-type PollResponse struct {
-	Error   string            `json:"error"`
-	Timeout string            `json:"timeout"`
-	Events  []json.RawMessage `json:"events"`
+	RetCode int64           `json:"retcode"`
 }
 
 // Update is an update response, from GetUpdates.

@@ -24,18 +24,17 @@ type BotAPI struct {
 	Debug  bool   `json:"debug"`
 	Buffer int    `json:"buffer"`
 
-	Self         User         `json:"-"`
-	Client       *http.Client `json:"-"`
-	APIEndpoint  string       `json:"-"`
-	PollEndpoint string       `json:"-"`
+	Self        User         `json:"-"`
+	Client      *http.Client `json:"-"`
+	APIEndpoint string       `json:"-"`
 }
 
 // NewBotAPI creates a new BotAPI instance.
 //
 // It requires a token, an API endpoint and a poll endpoint which you
 // set in Coolq HTTP API.
-func NewBotAPI(token string, api string, poll string) (*BotAPI, error) {
-	return NewBotAPIWithClient(token, api, poll, &http.Client{})
+func NewBotAPI(token string, api string) (*BotAPI, error) {
+	return NewBotAPIWithClient(token, api, &http.Client{})
 }
 
 // NewBotAPIWithClient creates a new BotAPI instance
@@ -43,13 +42,12 @@ func NewBotAPI(token string, api string, poll string) (*BotAPI, error) {
 //
 // It requires a token, an API endpoint and a poll endpoint which you
 // set in Coolq HTTP API.
-func NewBotAPIWithClient(token string, api string, poll string, client *http.Client) (*BotAPI, error) {
+func NewBotAPIWithClient(token string, api string, client *http.Client) (*BotAPI, error) {
 	bot := &BotAPI{
-		Token:        token,
-		Client:       client,
-		Buffer:       100,
-		APIEndpoint:  api,
-		PollEndpoint: poll,
+		Token:       token,
+		Client:      client,
+		Buffer:      100,
+		APIEndpoint: api,
 	}
 
 	self, err := bot.GetMe()
@@ -64,52 +62,6 @@ func NewBotAPIWithClient(token string, api string, poll string, client *http.Cli
 
 // MakeRequest makes a request to a specific endpoint with our token.
 func (bot *BotAPI) MakeRequest(endpoint string, params url.Values) (APIResponse, error) {
-	if endpoint == "get_updates" {
-		method := fmt.Sprintf(bot.PollEndpoint, endpoint)
-
-		resp, err := bot.Client.PostForm(method, params)
-		if err != nil {
-			return APIResponse{}, err
-		}
-		defer resp.Body.Close()
-
-		var pollResp PollResponse
-		bytes, err := bot.decodePollResponse(resp.Body, &pollResp)
-		if err != nil {
-			return APIResponse{}, err
-		}
-
-		if bot.Debug {
-			log.Printf("%s resp: %s", endpoint, bytes)
-		}
-
-		if pollResp.Error != "" {
-			return APIResponse{}, errors.New(pollResp.Error)
-		}
-
-		if len(pollResp.Events) == 0 {
-			return APIResponse{}, errors.New("No poll events get")
-		}
-
-		var eventResp PollEvent
-		json.Unmarshal(pollResp.Events[0], &eventResp)
-
-		s := string(eventResp.Data)
-		for i := 0; i < len(s); i++ {
-			if s[i] == '\\' {
-				s = s[:i] + s[i+1:]
-			}
-		}
-		s = s[1 : len(s)-1]
-		s = "[" + s + "]"
-		apiResp := APIResponse{
-			Status:  "ok",
-			RetCode: 0,
-			Data:    json.RawMessage(s),
-		}
-
-		return apiResp, nil
-	}
 	method := fmt.Sprintf(bot.APIEndpoint, endpoint, bot.Token)
 
 	resp, err := bot.Client.PostForm(method, params)
@@ -129,34 +81,13 @@ func (bot *BotAPI) MakeRequest(endpoint string, params url.Values) (APIResponse,
 	}
 
 	if apiResp.Status != "ok" {
-		return apiResp, errors.New(apiResp.Status + " " + strconv.Itoa(apiResp.RetCode))
+		return apiResp, errors.New(apiResp.Status + " " + strconv.FormatInt(apiResp.RetCode, 10))
 	}
 
 	return apiResp, nil
 }
 
 func (bot *BotAPI) decodeAPIResponse(responseBody io.Reader, resp *APIResponse) (_ []byte, err error) {
-	if !bot.Debug {
-		dec := json.NewDecoder(responseBody)
-		err = dec.Decode(resp)
-		return
-	}
-
-	// if debug, read reponse body
-	data, err := ioutil.ReadAll(responseBody)
-	if err != nil {
-		return
-	}
-
-	err = json.Unmarshal(data, resp)
-	if err != nil {
-		return
-	}
-
-	return data, nil
-}
-
-func (bot *BotAPI) decodePollResponse(responseBody io.Reader, resp *PollResponse) (_ []byte, err error) {
 	if !bot.Debug {
 		dec := json.NewDecoder(responseBody)
 		err = dec.Decode(resp)
