@@ -233,6 +233,10 @@ func ParseMessageFromMessageSegments(segs []MessageSegment) Message {
 			rich := Rich{}
 			seg.ParseMedia(&rich)
 			message = append(message, &rich)
+		case "hb":
+			hb := RedPack{}
+			seg.ParseMedia(&hb)
+			message = append(message, &hb)
 		default:
 			s := seg
 			message = append(message, &s)
@@ -588,6 +592,11 @@ func (s *Share) FunctionName() string {
 
 // 位置
 type Location struct {
+	Content   string  `cq:"content"` // 详细地址
+	Latitude  float64 `cq:"lat"`
+	Longitude float64 `cq:"lon"`
+	Style     int     `cq:"style"` // 不知道是什么
+	Title     string  `cq:"title"`
 }
 
 func (l *Location) FunctionName() string {
@@ -596,6 +605,7 @@ func (l *Location) FunctionName() string {
 
 // 厘米秀
 type Show struct {
+	ID int `cq:"id"`
 }
 
 func (s *Show) FunctionName() string {
@@ -604,10 +614,22 @@ func (s *Show) FunctionName() string {
 
 // 签到
 type Sign struct {
+	Image    string `cq:"image"` // URL of cover image
+	Location string `cq:"location"`
+	Title    string `cq:"title"`
 }
 
 func (s *Sign) FunctionName() string {
 	return "sign"
+}
+
+// 红包
+type RedPack struct {
+	Title string `cq:"title"`
+}
+
+func (rp *RedPack) FunctionName() string {
+	return "hb"
 }
 
 // 其他富媒体
