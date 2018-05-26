@@ -3,13 +3,13 @@
 package cqcode
 
 import (
-	"strings"
+	"fmt"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
-	"regexp"
-	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
+	"strings"
 )
 
 // StrictCommand indicates that whether a command must start with "/".
@@ -64,7 +64,7 @@ func decode(input, output interface{}) error {
 }
 
 // NewMessage returns an empty Message.
-func NewMessage() (Message) {
+func NewMessage() Message {
 	return make(Message, 0)
 }
 
@@ -348,7 +348,7 @@ func (seg *MessageSegment) ParseMedia(media Media) error {
 }
 
 // ParseMedia parses a CQEncoded string to a specified type of Media.
-func ParseCQCode(str string, media Media) (error) {
+func ParseCQCode(str string, media Media) error {
 	l := len(str)
 	if l <= 5 || str[:4] != "[CQ:" || str[len(str)-1:] != "]" {
 		// Invalid CQCode

@@ -1,11 +1,11 @@
 package cqcode
 
 import (
-	"testing"
 	"encoding/json"
+	"testing"
 )
 
-func TestCQString(t *testing.T)  {
+func TestCQString(t *testing.T) {
 	message := NewMessage()
 
 	rec := Record{
@@ -39,7 +39,6 @@ func TestParseCQCode(t *testing.T) {
 	var text Text
 	var face Face
 	data := make([]interface{}, 0)
-
 
 	cq1 := "&#91;he&#44;ym"
 

@@ -16,20 +16,20 @@ func main() {
 
 	bot.Debug = true
 
-    u := qqbotapi.NewWebhook("/webhook_endpoint")
-    u.PreloadUserInfo = true
+	u := qqbotapi.NewWebhook("/webhook_endpoint")
+	u.PreloadUserInfo = true
 	updates := bot.ListenForWebhook(u)
 	go http.ListenAndServe("0.0.0.0:8443", nil)
 
 	for update := range updates {
-        if update.Message == nil {
-            continue
-        }
+		if update.Message == nil {
+			continue
+		}
 
-        log.Printf("[%s] %s", update.Message.From.String(), update.Message.Text)
+		log.Printf("[%s] %s", update.Message.From.String(), update.Message.Text)
 
-        msg := qqbotapi.NewMessage(update.Message.Chat.ID, update.Message.Chat.Type, update.Message.Text)
-        bot.Send(msg)
+		msg := qqbotapi.NewMessage(update.Message.Chat.ID, update.Message.Chat.Type, update.Message.Text)
+		bot.Send(msg)
 	}
 }
 ```

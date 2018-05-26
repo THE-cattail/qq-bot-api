@@ -108,13 +108,13 @@ func (c Chat) IsDiscuss() bool {
 // Message is returned by almost every request, and contains data about
 // almost anything.
 type Message struct {
-	*cqcode.Message  `json:"message"`
-	MessageID int    `json:"message_id"`
-	From      *User  `json:"from"`
-	Chat      *Chat  `json:"chat"`
-	Text      string `json:"text"`
-	SubType   string `json:"sub_type"` // (only when Chat.Type is "group") "normal"、"anonymous"、"notice"
-	Font      int    `json:"font"`
+	*cqcode.Message `json:"message"`
+	MessageID       int    `json:"message_id"`
+	From            *User  `json:"from"`
+	Chat            *Chat  `json:"chat"`
+	Text            string `json:"text"`
+	SubType         string `json:"sub_type"` // (only when Chat.Type is "group") "normal"、"anonymous"、"notice"
+	Font            int    `json:"font"`
 }
 
 func (m Message) IsAnonymous() bool {

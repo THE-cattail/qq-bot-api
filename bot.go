@@ -166,7 +166,7 @@ func (bot *BotAPI) Send(c Chattable) (Message, error) {
 	return bot.sendChattable(c)
 }
 
-func (bot *BotAPI) debugLog(context string, message ... interface{}) {
+func (bot *BotAPI) debugLog(context string, message ...interface{}) {
 	if bot.Debug {
 		for i, v := range message {
 			log.Printf("%s [%d]: %+v\n", context, i, v)
