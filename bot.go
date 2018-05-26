@@ -12,29 +12,29 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
-	"github.com/juzi5201314/cqhttp-go-sdk/cq"
+	"github.com/catsworld/qq-bot-api/cqcode"
 )
 
 // BotAPI allows you to interact with the Coolq HTTP API.
 type BotAPI struct {
-	Token  string `json:"token"`
-	Debug  bool   `json:"debug"`
-	Buffer int    `json:"buffer"`
+	Token       string `json:"token"`
+	Secret      string `json:"secret"`
+	Debug       bool   `json:"debug"`
+	Buffer      int    `json:"buffer"`
+	APIEndpoint string `json:"api_endpoint"`
 
-	Self        User         `json:"-"`
-	Client      *http.Client `json:"-"`
-	APIEndpoint string       `json:"-"`
+	Self   User         `json:"-"`
+	Client *http.Client `json:"-"`
 }
 
 // NewBotAPI creates a new BotAPI instance.
 //
-// It requires a token, an API endpoint and a poll endpoint which you
-// set in Coolq HTTP API.
-func NewBotAPI(token string, api string) (*BotAPI, error) {
-	return NewBotAPIWithClient(token, api, &http.Client{})
+// token: access_token, api: API Endpoint of Coolq-http, example: http://host:port
+//
+func NewBotAPI(token string, api string, secret string) (*BotAPI, error) {
+	return NewBotAPIWithClient(token, api, secret, &http.Client{})
 }
 
 // NewBotAPIWithClient creates a new BotAPI instance
@@ -42,12 +42,13 @@ func NewBotAPI(token string, api string) (*BotAPI, error) {
 //
 // It requires a token, an API endpoint and a poll endpoint which you
 // set in Coolq HTTP API.
-func NewBotAPIWithClient(token string, api string, client *http.Client) (*BotAPI, error) {
+func NewBotAPIWithClient(token string, api string, secret string, client *http.Client) (*BotAPI, error) {
 	bot := &BotAPI{
 		Token:       token,
 		Client:      client,
 		Buffer:      100,
 		APIEndpoint: api,
+		Secret:      secret,
 	}
 
 	self, err := bot.GetMe()
@@ -62,7 +63,8 @@ func NewBotAPIWithClient(token string, api string, client *http.Client) (*BotAPI
 
 // MakeRequest makes a request to a specific endpoint with our token.
 func (bot *BotAPI) MakeRequest(endpoint string, params url.Values) (APIResponse, error) {
-	method := fmt.Sprintf(bot.APIEndpoint, endpoint, bot.Token)
+
+	method := fmt.Sprintf("%s/%s?access_token=%s", bot.APIEndpoint, endpoint, bot.Token)
 
 	resp, err := bot.Client.PostForm(method, params)
 	if err != nil {
@@ -145,7 +147,16 @@ func (bot *BotAPI) GetMe() (User, error) {
 //
 // It requires the Message.
 func (bot *BotAPI) IsMessageToMe(message Message) bool {
-	return strings.Contains(message.Text, cq.At(strconv.Itoa(bot.Self.ID)))
+	for _, media := range *message.Message {
+		at, ok := media.(*cqcode.At)
+		if !ok {
+			continue
+		}
+		if at.QQ == strconv.Itoa(bot.Self.ID) {
+			return true
+		}
+	}
+	return false
 }
 
 // Send will send a Chattable item to Coolq.
@@ -155,10 +166,11 @@ func (bot *BotAPI) Send(c Chattable) (Message, error) {
 	return bot.sendChattable(c)
 }
 
-func (bot *BotAPI) debugLog(context string, v url.Values, message interface{}) {
+func (bot *BotAPI) debugLog(context string, message ... interface{}) {
 	if bot.Debug {
-		log.Printf("%s req : %+v\n", context, v)
-		log.Printf("%s resp: %+v\n", context, message)
+		for i, v := range message {
+			log.Printf("%s [%d]: %+v\n", context, i, v)
+		}
 	}
 }
 
@@ -181,7 +193,79 @@ func (bot *BotAPI) sendChattable(config Chattable) (Message, error) {
 	return message, nil
 }
 
-// GetUpdates fetches updates.
+// ParseRawMessage parses message
+func (update Update) ParseRawMessage() {
+	text, ok := update.RawMessage.(string)
+	if update.PostType != "message" {
+		update.Text = text
+		return
+	}
+	messageSubType := "normal"
+	chat := Chat{
+		Type: update.MessageType,
+	}
+	if chat.IsPrivate() {
+		chat.ID = int64(update.UserID)
+		chat.SubType = update.SubType
+	}
+	if chat.IsGroup() {
+		chat.ID = int64(update.GroupID)
+		messageSubType = update.SubType
+	}
+	if chat.IsDiscuss() {
+		chat.ID = int64(update.DiscussID)
+	}
+	message, _ := cqcode.ParseMessage(update.RawMessage)
+	if !ok {
+		text = message.CQString()
+	}
+	update.Message = &Message{
+		Message:   &message,
+		MessageID: update.MessageID,
+		From: &User{
+			ID:            update.UserID,
+			AnonymousName: update.AnonymousName,
+			AnonymousFlag: update.AnonymousFlag,
+		},
+		Chat:    &chat,
+		Text:    text,
+		SubType: messageSubType,
+	}
+}
+
+// PreloadUserInfo fills in the information in update.Message.From
+func (bot *BotAPI) PreloadUserInfo(update *Update) {
+	if update.Message == nil || update.Message.IsAnonymous() {
+		return
+	}
+	var resp APIResponse
+	var err error
+	if update.Message.Chat.Type == "group" {
+		v := url.Values{}
+		v.Add("group_id", strconv.Itoa(update.GroupID))
+		v.Add("user_id", strconv.Itoa(update.UserID))
+		resp, err = bot.MakeRequest("get_group_member_info", v)
+		if err != nil {
+			return
+		}
+	} else {
+		v := url.Values{}
+		v.Add("user_id", strconv.Itoa(update.UserID))
+		resp, err = bot.MakeRequest("get_stranger_info", v)
+		if err != nil {
+			return
+		}
+	}
+	var user User
+	json.Unmarshal(resp.Data, &user)
+	update.Message.From = &user
+}
+
+// GetUpdates fetches updates over long polling.
+// https://github.com/richardchien/coolq-http-api/issues/62
+//
+// Note that long polling is currently unsupported by coolq-http-api, thus this api
+// might be changed in the future. It works with github.com/catsworld/cqhttp-longpoll-server at present.
 //
 // Offset, Limit, and Timeout are optional.
 // To avoid stale items, set Offset to one higher than the previous item.
@@ -206,42 +290,10 @@ func (bot *BotAPI) GetUpdates(config UpdateConfig) ([]Update, error) {
 
 	var updates []Update
 	json.Unmarshal(resp.Data, &updates)
-	for i := 0; i < len(updates); i++ {
-		chat := Chat{
-			Type: updates[i].MessageType,
-		}
-		if chat.IsPrivate() {
-			chat.ID = int64(updates[i].UserID)
-		}
-		if chat.IsGroup() {
-			chat.ID = int64(updates[i].GroupID)
-		}
-		if chat.IsDiscuss() {
-			chat.ID = int64(updates[i].DiscussID)
-		}
-		v := url.Values{}
-		v.Add("user_id", strconv.Itoa(updates[i].UserID))
-		resp, err := bot.MakeRequest("get_stranger_info", v)
-		if err != nil {
-			return []Update{}, err
-		}
-		if chat.Type == "group" {
-			v := url.Values{}
-			v.Add("group_id", strconv.Itoa(updates[i].GroupID))
-			v.Add("user_id", strconv.Itoa(updates[i].UserID))
-			resp, err = bot.MakeRequest("get_group_member_info", v)
-			if err != nil {
-				return []Update{}, err
-			}
-		}
-		var user User
-		json.Unmarshal(resp.Data, &user)
-		updates[i].UpdateID = updates[i].MessageID
-		updates[i].Message = &Message{
-			MessageID: updates[i].MessageID,
-			From:      &user,
-			Chat:      &chat,
-			Text:      updates[i].Text,
+	for _, update := range updates {
+		update.ParseRawMessage()
+		if config.PreloadUserInfo {
+			bot.PreloadUserInfo(&update)
 		}
 	}
 
@@ -250,7 +302,11 @@ func (bot *BotAPI) GetUpdates(config UpdateConfig) ([]Update, error) {
 	return updates, nil
 }
 
-// GetUpdatesChan starts and returns a channel for getting updates.
+// GetUpdatesChan starts and returns a channel that gets updates over long polling.
+// https://github.com/richardchien/coolq-http-api/issues/62
+//
+// Note that long polling is currently unsupported by coolq-http-api, thus this api
+// might be changed in the future. It works with github.com/catsworld/cqhttp-longpoll-server at present.
 func (bot *BotAPI) GetUpdatesChan(config UpdateConfig) (UpdatesChannel, error) {
 	ch := make(chan Update, bot.Buffer)
 
@@ -266,13 +322,33 @@ func (bot *BotAPI) GetUpdatesChan(config UpdateConfig) (UpdatesChannel, error) {
 			}
 
 			for _, update := range updates {
-				if update.UpdateID >= config.Offset {
-					config.Offset = update.UpdateID + 1
-					ch <- update
-				}
+				ch <- update
 			}
 		}
 	}()
 
 	return ch, nil
+}
+
+// ListenForWebhook registers a http handler for a webhook and returns a channel that gets updates.
+func (bot *BotAPI) ListenForWebhook(config WebhookConfig) UpdatesChannel {
+	ch := make(chan Update, bot.Buffer)
+
+	http.HandleFunc(config.Pattern, func(w http.ResponseWriter, r *http.Request) {
+		bytes, _ := ioutil.ReadAll(r.Body)
+
+		var update Update
+		json.Unmarshal(bytes, &update)
+
+		update.ParseRawMessage()
+		if config.PreloadUserInfo {
+			bot.PreloadUserInfo(&update)
+		}
+
+		bot.debugLog("ListenForWebhook", update)
+
+		ch <- update
+	})
+
+	return ch
 }

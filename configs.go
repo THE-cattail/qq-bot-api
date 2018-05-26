@@ -53,7 +53,17 @@ func (config MessageConfig) method() string {
 
 // UpdateConfig contains information about a GetUpdates request.
 type UpdateConfig struct {
+	BaseUpdateConfig
 	Offset  int
 	Limit   int
 	Timeout int
+}
+
+type WebhookConfig struct {
+	BaseUpdateConfig
+	Pattern string
+}
+
+type BaseUpdateConfig struct {
+	PreloadUserInfo bool
 }

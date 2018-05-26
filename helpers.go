@@ -19,8 +19,20 @@ func NewMessage(chatID int64, sendType string, text string) MessageConfig {
 // You likely want to set this to the last Update ID plus 1.
 func NewUpdate(offset int) UpdateConfig {
 	return UpdateConfig{
+		BaseUpdateConfig: BaseUpdateConfig{
+			PreloadUserInfo: false,
+		},
 		Offset:  offset,
 		Limit:   0,
 		Timeout: 0,
+	}
+}
+
+func NewWebhook(pattern string) WebhookConfig {
+	return WebhookConfig{
+		BaseUpdateConfig: BaseUpdateConfig{
+			PreloadUserInfo: false,
+		},
+		Pattern: pattern,
 	}
 }
