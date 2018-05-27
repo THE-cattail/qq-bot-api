@@ -194,7 +194,7 @@ func (bot *BotAPI) sendChattable(config Chattable) (Message, error) {
 }
 
 // ParseRawMessage parses message
-func (update Update) ParseRawMessage() {
+func (update *Update) ParseRawMessage() {
 	text, ok := update.RawMessage.(string)
 	if update.PostType != "message" {
 		update.Text = text
