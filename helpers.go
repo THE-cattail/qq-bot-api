@@ -1,8 +1,13 @@
 package qqbotapi
 
 import (
+	"encoding/base64"
+	"errors"
 	"fmt"
 	"github.com/catsworld/qq-bot-api/cqcode"
+	"io"
+	"io/ioutil"
+	"net/url"
 )
 
 // NewMessage creates a new Message.
@@ -50,5 +55,135 @@ func NewWebhook(pattern string) WebhookConfig {
 			PreloadUserInfo: false,
 		},
 		Pattern: pattern,
+	}
+}
+
+const (
+	CacheEnabled  = 1
+	CacheDisabled = 0
+)
+
+// NetResource is a resource located in the Internet.
+type NetResource struct {
+	Cache int `cq:"cache"`
+}
+
+// EnableCache enables CQ HTTP's cache feature.
+func (r *NetResource) EnableCache() {
+	r.Cache = CacheEnabled
+}
+
+// DisableCache forces CQ HTTP download from the URL instead of using cache.
+func (r *NetResource) DisableCache() {
+	r.Cache = CacheDisabled
+}
+
+// NetImage is an image located in the Internet.
+type NetImage struct {
+	*cqcode.Image
+	*NetResource
+}
+
+// NetRecord is a record located in the Internet.
+type NetRecord struct {
+	*cqcode.Record
+	*NetResource
+}
+
+// NewImageBase64 formats an image in base64.
+func NewImageBase64(file interface{}) (*cqcode.Image, error) {
+	fileid, err := NewFileBase64(file)
+	if err != nil {
+		return &cqcode.Image{}, err
+	}
+	return &cqcode.Image{
+		FileID: fileid,
+	}, nil
+}
+
+// NewRecordBase64 formats a record in base64.
+func NewRecordBase64(file interface{}) (*cqcode.Record, error) {
+	fileid, err := NewFileBase64(file)
+	if err != nil {
+		return &cqcode.Record{}, err
+	}
+	return &cqcode.Record{
+		FileID: fileid,
+	}, nil
+}
+
+// NewFileBase64 formats a file into base64 format.
+func NewFileBase64(file interface{}) (string, error) {
+	switch f := file.(type) {
+	case string:
+		data, err := ioutil.ReadFile(f)
+		if err != nil {
+			return "", err
+		}
+		encodeString := base64.StdEncoding.EncodeToString(data)
+		return "base64://" + encodeString, nil
+
+	case []byte:
+
+		encodeString := base64.StdEncoding.EncodeToString(f)
+		return "base64://" + encodeString, nil
+
+	case io.Reader:
+
+		data, err := ioutil.ReadAll(f)
+		if err != nil {
+			return "", err
+		}
+
+		encodeString := base64.StdEncoding.EncodeToString(data)
+		return "base64://" + encodeString, nil
+
+	default:
+		return "", errors.New("bad file type")
+	}
+}
+
+// NewImageLocal formats an image with the file path,
+// this requires CQ HTTP runs in the same host with your bot.
+func NewImageLocal(file string) *cqcode.Image {
+	return &cqcode.Image{
+		FileID: NewFileLocal(file),
+	}
+}
+
+// NewImageLocal formats a record with the file path,
+// this requires CQ HTTP runs in the same host with your bot.
+func NewRecordLocal(file string) *cqcode.Record {
+	return &cqcode.Record{
+		FileID: NewFileLocal(file),
+	}
+}
+
+// NewFileLocal formats a file with the file path, returning the string.
+func NewFileLocal(file string) string {
+	return "file://" + file
+}
+
+// NewImageWeb formats an image with the URL.
+func NewImageWeb(url *url.URL) *NetImage {
+	return &NetImage{
+		Image: &cqcode.Image{
+			FileID: url.String(),
+		},
+		NetResource: &NetResource{
+			Cache: CacheEnabled,
+		},
+	}
+}
+
+// NewRecordWeb formats a record with the URL.
+func NewRecordWeb(url *url.URL) *NetRecord {
+	return &NetRecord{
+		Record: &cqcode.Record{
+			FileID: url.String(),
+		},
+		NetResource: &NetResource{
+			Cache: CacheEnabled,
+		},
 	}
 }
