@@ -99,7 +99,7 @@ func ParseMessage(msg interface{}) (Message, error) {
 // API response JSON.
 func ParseMessageSegmentsFromArray(msg interface{}) ([]MessageSegment, error) {
 	segs := make([]MessageSegment, 0)
-	err := decode(msg, segs)
+	err := decode(msg, &segs)
 	return segs, err
 }
 
