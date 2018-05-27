@@ -14,6 +14,9 @@ import (
 	"strconv"
 	"time"
 
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/hex"
 	"github.com/catsworld/qq-bot-api/cqcode"
 )
 
@@ -410,6 +413,17 @@ func (bot *BotAPI) ListenForWebhook(config WebhookConfig) UpdatesChannel {
 
 	http.HandleFunc(config.Pattern, func(w http.ResponseWriter, r *http.Request) {
 		bytes, _ := ioutil.ReadAll(r.Body)
+
+		if bot.Secret != "" {
+			mac := hmac.New(sha1.New, []byte(bot.Secret))
+			mac.Write(bytes)
+			expectedMac := r.Header.Get("X-Signature")[len("sha1="):]
+			messageMac := hex.EncodeToString(mac.Sum(nil))
+			if expectedMac != messageMac {
+				bot.debugLog("ListenForWebhook HMAC", expectedMac, messageMac)
+				return
+			}
+		}
 
 		var update Update
 		json.Unmarshal(bytes, &update)
