@@ -377,10 +377,10 @@ type UpdateConfig struct {
 // WebhookConfig contains information about a webhook.
 type WebhookConfig struct {
 	BaseUpdateConfig
-	Pattern string
+	Pattern string // the webhook endpoint
 }
 
 // BaseUpdateConfig contains information about loading updates.
 type BaseUpdateConfig struct {
-	PreloadUserInfo bool
+	PreloadUserInfo bool // if this is enabled, more information will be provided in Update.From
 }

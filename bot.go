@@ -34,8 +34,8 @@ type BotAPI struct {
 
 // NewBotAPI creates a new BotAPI instance.
 //
-// token: access_token, api: API Endpoint of Coolq-http, example: http://host:port
-//
+// token: access_token, api: API Endpoint of Coolq-http, example: http://host:port.
+// secret: the secret key of HMAC SHA1 signature of Coolq-http, won't be validated if left blank.
 func NewBotAPI(token string, api string, secret string) (*BotAPI, error) {
 	return NewBotAPIWithClient(token, api, secret, &http.Client{})
 }
