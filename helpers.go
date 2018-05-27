@@ -8,11 +8,11 @@ import (
 // NewMessage creates a new Message.
 //
 // chatID is where to send it, message is the message.
-func NewMessage(chatID int64, sendType string, message interface{}) MessageConfig {
+func NewMessage(chatID int64, chatType string, message interface{}) MessageConfig {
 	mc := MessageConfig{
 		BaseChat: BaseChat{
 			ChatID:   chatID,
-			SendType: sendType,
+			ChatType: chatType,
 		},
 	}
 	switch v := message.(type) {
@@ -43,6 +43,7 @@ func NewUpdate(offset int) UpdateConfig {
 	}
 }
 
+// NewWebhook registers a webhook.
 func NewWebhook(pattern string) WebhookConfig {
 	return WebhookConfig{
 		BaseUpdateConfig: BaseUpdateConfig{

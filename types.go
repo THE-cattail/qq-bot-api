@@ -65,6 +65,11 @@ type User struct {
 	AnonymousFlag       string `json:"anonymous_flag"` // Anonymous ID
 }
 
+type Group struct {
+	ID   int64  `json:"group_id"`
+	Name string `json:"group_name"`
+}
+
 // String displays a simple text version of a user.
 //
 // It is normally a user's card, but falls back to a nickname as available.
@@ -117,10 +122,12 @@ type Message struct {
 	Font            int    `json:"font"`
 }
 
+// IsAnonymous returns if a message is an anonymous message.
 func (m Message) IsAnonymous() bool {
 	return m.SubType == "anonymous"
 }
 
+// IsNotice returns if a message is a notice.
 func (m Message) IsNotice() bool {
 	return m.SubType == "notice"
 }

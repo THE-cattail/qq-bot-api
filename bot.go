@@ -138,9 +138,78 @@ func (bot *BotAPI) GetMe() (User, error) {
 	var user User
 	json.Unmarshal(resp.Data, &user)
 
-	bot.debugLog("getMe", nil, user)
+	bot.debugLog("GetMe", nil, user)
 
 	return user, nil
+}
+
+// GetMe fetches a stranger's user info.
+func (bot *BotAPI) GetStrangerInfo(userID int64) (User, error) {
+	v := url.Values{}
+	v.Add("user_id", strconv.FormatInt(userID, 10))
+	resp, err := bot.MakeRequest("get_stranger_info", v)
+	if err != nil {
+		return User{}, err
+	}
+	var user User
+	json.Unmarshal(resp.Data, &user)
+
+	bot.debugLog("GetStrangerInfo", nil, user)
+
+	return user, nil
+}
+
+// GetGroupMemberInfo fetches a group member's user info.
+//
+// Using cache may result in not updating in time, but will be responded faster
+func (bot *BotAPI) GetGroupMemberInfo(groupID int64, userID int64, noCache bool) (User, error) {
+	v := url.Values{}
+	v.Add("group_id", strconv.FormatInt(groupID, 10))
+	v.Add("user_id", strconv.FormatInt(userID, 10))
+	v.Add("no_cache", strconv.FormatBool(noCache))
+	resp, err := bot.MakeRequest("get_group_member_info", v)
+	if err != nil {
+		return User{}, err
+	}
+	var user User
+	json.Unmarshal(resp.Data, &user)
+
+	bot.debugLog("GetGroupMemberInfo", nil, user)
+
+	return user, nil
+}
+
+// GetGroupMemberList fetches a group all member's user info.
+//
+// This information might be not full or accurate enough.
+func (bot *BotAPI) GetGroupMemberList(groupID int64) ([]User, error) {
+	v := url.Values{}
+	v.Add("group_id", strconv.FormatInt(groupID, 10))
+	resp, err := bot.MakeRequest("get_group_member_list", v)
+	if err != nil {
+		return nil, err
+	}
+	users := make([]User, 0)
+	json.Unmarshal(resp.Data, &users)
+
+	bot.debugLog("GetGroupMemberInfo", nil, users)
+
+	return users, nil
+}
+
+// GetGroupList fetches all groups
+func (bot *BotAPI) GetGroupList() ([]Group, error) {
+	v := url.Values{}
+	resp, err := bot.MakeRequest("get_group_list", v)
+	if err != nil {
+		return nil, err
+	}
+	groups := make([]Group, 0)
+	json.Unmarshal(resp.Data, &groups)
+
+	bot.debugLog("GetGroupList", nil, groups)
+
+	return groups, nil
 }
 
 // IsMessageToMe returns true if message directed to this bot.
@@ -160,10 +229,22 @@ func (bot *BotAPI) IsMessageToMe(message Message) bool {
 }
 
 // Send will send a Chattable item to Coolq.
+// The response will be regarded as Message, often with a MessageID in it.
 //
 // It requires the Chattable to send.
 func (bot *BotAPI) Send(c Chattable) (Message, error) {
-	return bot.sendChattable(c)
+	v, err := c.values()
+	if err != nil {
+		return Message{}, err
+	}
+
+	message, err := bot.makeMessageRequest(c.method(), v)
+
+	if err != nil {
+		return Message{}, err
+	}
+
+	return message, nil
 }
 
 func (bot *BotAPI) debugLog(context string, message ...interface{}) {
@@ -174,19 +255,22 @@ func (bot *BotAPI) debugLog(context string, message ...interface{}) {
 	}
 }
 
-func (bot *BotAPI) sendChattable(config Chattable) (Message, error) {
-	v, err := config.values()
+// Do will send a Chattable item to Coolq.
+//
+// It requires the Chattable to send.
+func (bot *BotAPI) Do(c Chattable) (APIResponse, error) {
+	v, err := c.values()
 	if err != nil {
-		return Message{}, err
+		return APIResponse{}, err
 	}
 
-	message, err := bot.makeMessageRequest(config.method(), v)
+	resp, err := bot.MakeRequest(c.method(), v)
 
 	if err != nil {
-		return Message{}, err
+		return APIResponse{}, err
 	}
 
-	return message, nil
+	return resp, nil
 }
 
 // ParseRawMessage parses message
@@ -234,26 +318,20 @@ func (bot *BotAPI) PreloadUserInfo(update *Update) {
 	if update.Message == nil || update.Message.IsAnonymous() {
 		return
 	}
-	var resp APIResponse
+	var user User
 	var err error
 	if update.Message.Chat.Type == "group" {
-		v := url.Values{}
-		v.Add("group_id", strconv.FormatInt(update.GroupID, 10))
-		v.Add("user_id", strconv.FormatInt(update.UserID, 10))
-		resp, err = bot.MakeRequest("get_group_member_info", v)
+		user, err = bot.GetGroupMemberInfo(update.GroupID, update.UserID, false)
 		if err != nil {
 			return
 		}
 	} else {
-		v := url.Values{}
-		v.Add("user_id", strconv.FormatInt(update.UserID, 10))
-		resp, err = bot.MakeRequest("get_stranger_info", v)
+		user, err = bot.GetStrangerInfo(update.UserID)
 		if err != nil {
 			return
 		}
 	}
-	var user User
-	json.Unmarshal(resp.Data, &user)
+
 	update.Message.From = &user
 }
 
@@ -347,4 +425,150 @@ func (bot *BotAPI) ListenForWebhook(config WebhookConfig) UpdatesChannel {
 	})
 
 	return ch
+}
+
+// SendMessage sends message to a chat.
+func (bot *BotAPI) SendMessage(chatID int64, chatType string, message interface{}) (Message, error) {
+	return bot.Send(NewMessage(chatID, chatType, message))
+}
+
+// DeleteMessage deletes a message in a chat.
+func (bot *BotAPI) DeleteMessage(messageID int64) (APIResponse, error) {
+	return bot.Do(DeleteMessageConfig{
+		MessageID: messageID,
+	})
+}
+
+// Like sends like (displayed in one's profile page) to a user.
+func (bot *BotAPI) Like(userID int64, times int) (APIResponse, error) {
+	return bot.Do(LikeConfig{
+		UserID: userID,
+		Times:  times,
+	})
+}
+
+// KickChatMember kick a chat member in a group.
+func (bot *BotAPI) KickChatMember(groupID int64, userID int64, rejectAddRequest bool) (APIResponse, error) {
+	return bot.Do(KickChatMemberConfig{
+		ChatMemberConfig: ChatMemberConfig{
+			GroupID: groupID,
+			UserID:  userID,
+		},
+		RejectAddRequest: rejectAddRequest,
+	})
+}
+
+// RestrictChatMember bans a chat member from sending messages.
+func (bot *BotAPI) RestrictChatMember(groupID int64, userID int64, duration time.Duration) (APIResponse, error) {
+	return bot.Do(RestrictChatMemberConfig{
+		ChatMemberConfig: ChatMemberConfig{
+			GroupID: groupID,
+			UserID:  userID,
+		},
+		Duration: duration,
+	})
+}
+
+// RestrictAnonymousChatMember bans an anonymous chat member from sending messages.
+func (bot *BotAPI) RestrictAnonymousChatMember(groupID int64, flag string, duration time.Duration) (APIResponse, error) {
+	return bot.Do(RestrictChatMemberConfig{
+		ChatMemberConfig: ChatMemberConfig{
+			GroupID:       groupID,
+			AnonymousFlag: flag,
+		},
+		Duration: duration,
+	})
+}
+
+// By RestrictAllChatMembers enabled, only administrators in a group will be able to send messages.
+func (bot *BotAPI) RestrictAllChatMembers(groupID int64, enable bool) (APIResponse, error) {
+	return bot.Do(RestrictAllChatMembersConfig{
+		GroupControlConfig: GroupControlConfig{
+			GroupID: groupID,
+			Enable:  enable,
+		},
+	})
+}
+
+// PromoteChatMember add admin rights to user.
+func (bot *BotAPI) PromoteChatMember(groupID int64, userID int64, enable bool) (APIResponse, error) {
+	return bot.Do(PromoteChatMemberConfig{
+		ChatMemberConfig: ChatMemberConfig{
+			GroupID: groupID,
+			UserID:  userID,
+		},
+		Enable: enable,
+	})
+}
+
+// By EnableAnonymousChat enabled, members in a group will be able to send messages with an anonymous identity.
+func (bot *BotAPI) EnableAnonymousChat(groupID int64, enable bool) (APIResponse, error) {
+	return bot.Do(EnableAnonymousChatConfig{
+		GroupControlConfig: GroupControlConfig{
+			GroupID: groupID,
+			Enable:  enable,
+		},
+	})
+}
+
+// SetChatMemberCard sets a chat member's 群名片 in the group.
+func (bot *BotAPI) SetChatMemberCard(groupID int64, userID int64, card string) (APIResponse, error) {
+	return bot.Do(SetChatMemberCardConfig{
+		ChatMemberConfig: ChatMemberConfig{
+			GroupID: groupID,
+			UserID:  userID,
+		},
+		Card: card,
+	})
+}
+
+// SetChatMemberCard sets a chat member's 专属头衔 in the group.
+func (bot *BotAPI) SetChatMemberTitle(groupID int64, userID int64, title string, duration time.Duration) (APIResponse, error) {
+	return bot.Do(SetChatMemberTitleConfig{
+		ChatMemberConfig: ChatMemberConfig{
+			GroupID: groupID,
+			UserID:  userID,
+		},
+		SpecialTitle: title,
+		Duration:     duration,
+	})
+}
+
+// LeaveChat makes the bot leave the chat.
+func (bot *BotAPI) LeaveChat(chatID int64, chatType string, dismiss bool) (APIResponse, error) {
+	return bot.Do(LeaveChatConfig{
+		BaseChat: BaseChat{
+			ChatID:   chatID,
+			ChatType: chatType,
+		},
+		IsDismiss: dismiss,
+	})
+}
+
+// HandleFriendRequest handles a friend request.
+//
+// remark: 备注
+func (bot *BotAPI) HandleFriendRequest(flag string, approve bool, remark string) (APIResponse, error) {
+	return bot.Do(HandleFriendRequestConfig{
+		HandleRequestConfig: HandleRequestConfig{
+			RequestFlag: flag,
+			Approve:     approve,
+		},
+		Remark: remark,
+	})
+}
+
+// HandleFriendRequest handles a group adding request.
+//
+// typ: sub_type in Update
+// reason: Reason if you rejects this request.
+func (bot *BotAPI) HandleGroupRequest(flag string, typ string, approve bool, reason string) (APIResponse, error) {
+	return bot.Do(HandleGroupRequestConfig{
+		HandleRequestConfig: HandleRequestConfig{
+			RequestFlag: flag,
+			Approve:     approve,
+		},
+		Type:   typ,
+		Reason: reason,
+	})
 }
