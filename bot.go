@@ -83,7 +83,7 @@ func (bot *BotAPI) MakeRequest(endpoint string, params url.Values) (APIResponse,
 	}
 
 	if apiResp.Status != "ok" {
-		return apiResp, errors.New(apiResp.Status + " " + strconv.FormatInt(apiResp.RetCode, 10))
+		return apiResp, errors.New(apiResp.Status + " " + strconv.Itoa(apiResp.RetCode))
 	}
 
 	return apiResp, nil
@@ -152,7 +152,7 @@ func (bot *BotAPI) IsMessageToMe(message Message) bool {
 		if !ok {
 			continue
 		}
-		if at.QQ == strconv.Itoa(bot.Self.ID) {
+		if at.QQ == strconv.FormatInt(bot.Self.ID, 10) {
 			return true
 		}
 	}
@@ -238,15 +238,15 @@ func (bot *BotAPI) PreloadUserInfo(update *Update) {
 	var err error
 	if update.Message.Chat.Type == "group" {
 		v := url.Values{}
-		v.Add("group_id", strconv.Itoa(update.GroupID))
-		v.Add("user_id", strconv.Itoa(update.UserID))
+		v.Add("group_id", strconv.FormatInt(update.GroupID, 10))
+		v.Add("user_id", strconv.FormatInt(update.UserID, 10))
 		resp, err = bot.MakeRequest("get_group_member_info", v)
 		if err != nil {
 			return
 		}
 	} else {
 		v := url.Values{}
-		v.Add("user_id", strconv.Itoa(update.UserID))
+		v.Add("user_id", strconv.FormatInt(update.UserID, 10))
 		resp, err = bot.MakeRequest("get_stranger_info", v)
 		if err != nil {
 			return
