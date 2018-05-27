@@ -436,9 +436,48 @@ func (bot *BotAPI) ListenForWebhook(config WebhookConfig) UpdatesChannel {
 		bot.debugLog("ListenForWebhook", update)
 
 		ch <- update
+
+		w.WriteHeader(http.StatusNoContent)
 	})
 
 	return ch
+}
+
+// ListenForWebhookSync registers a http handler for a webhook.
+//
+// handler receives a update and returns a key-value dictionary.
+func (bot *BotAPI) ListenForWebhookSync(config WebhookConfig, handler func(update Update) interface{}) {
+
+	http.HandleFunc(config.Pattern, func(w http.ResponseWriter, r *http.Request) {
+		bytes, _ := ioutil.ReadAll(r.Body)
+
+		if bot.Secret != "" {
+			mac := hmac.New(sha1.New, []byte(bot.Secret))
+			mac.Write(bytes)
+			expectedMac := r.Header.Get("X-Signature")[len("sha1="):]
+			messageMac := hex.EncodeToString(mac.Sum(nil))
+			if expectedMac != messageMac {
+				bot.debugLog("ListenForWebhook HMAC", expectedMac, messageMac)
+				return
+			}
+		}
+
+		var update Update
+		json.Unmarshal(bytes, &update)
+
+		update.ParseRawMessage()
+		if config.PreloadUserInfo {
+			bot.PreloadUserInfo(&update)
+		}
+
+		bot.debugLog("ListenForWebhook", update)
+
+		resp, _ := json.Marshal(handler(update))
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write(resp)
+	})
 }
 
 // SendMessage sends message to a chat.
