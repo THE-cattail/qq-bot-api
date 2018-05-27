@@ -417,24 +417,40 @@ func FormatCQCode(media Media) string {
 		text := EncodeCQText(v.Text)
 		return text
 	default:
-		rv := reflect.ValueOf(v)
-		rv = reflect.Indirect(rv)
-		if rv.Kind() != reflect.Struct {
-			return ""
-		}
+		values := make([]interface{}, 0)
+		values = append(values, v)
 		strs := make([]string, 0)
 		strs = append(strs, v.FunctionName())
-		for i := 0; i < rv.NumField(); i++ {
-			f := rv.Type().Field(i)
-			k := f.Tag.Get("cq")
-			if k == "" {
-				k = f.Name
+		for {
+			if len(values) == 0 {
+				break
 			}
-			text := fmt.Sprint(rv.Field(i))
-			text = EncodeCQCodeText(text)
-			kvs := fmt.Sprintf("%s=%s", k, text)
-			strs = append(strs, kvs)
+			rv := reflect.ValueOf(values[0])
+			rv = reflect.Indirect(rv)
+			rt := rv.Type()
+			values = values[1:]
+			if rv.Kind() != reflect.Struct {
+				continue
+			}
+			for i := 0; i < rv.NumField(); i++ {
+				frv := rv.Field(i)
+				frt := rt.Field(i)
+				if frt.Anonymous {
+					values = append(values, frv.Interface())
+					continue
+				}
+				f := rv.Type().Field(i)
+				k := f.Tag.Get("cq")
+				if k == "" {
+					k = f.Name
+				}
+				text := fmt.Sprint(frv)
+				text = EncodeCQCodeText(text)
+				kvs := fmt.Sprintf("%s=%s", k, text)
+				strs = append(strs, kvs)
+			}
 		}
+
 		str := strings.Join(strs, ",")
 		str = fmt.Sprintf("[CQ:%s]", str)
 		return str
