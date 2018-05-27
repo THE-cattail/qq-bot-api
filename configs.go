@@ -13,7 +13,8 @@ type Chattable interface {
 
 // BaseChat is base type for all chat config types.
 type BaseChat struct {
-	ChatID int64 // required
+	ChatID   int64 // required
+	SendType string
 }
 
 // values returns url.Values representation of BaseChat
@@ -27,8 +28,7 @@ func (chat *BaseChat) values() (url.Values, error) {
 // MessageConfig contains information about a SendMessage request.
 type MessageConfig struct {
 	BaseChat
-	SendType string
-	Text     string
+	Text string
 }
 
 // values returns a url.Values representation of MessageConfig.

@@ -1,16 +1,31 @@
 package qqbotapi
 
+import (
+	"fmt"
+	"github.com/catsworld/qq-bot-api/cqcode"
+)
+
 // NewMessage creates a new Message.
 //
-// chatID is where to send it, text is the message text.
-func NewMessage(chatID int64, sendType string, text string) MessageConfig {
-	return MessageConfig{
+// chatID is where to send it, message is the message.
+func NewMessage(chatID int64, sendType string, message interface{}) MessageConfig {
+	mc := MessageConfig{
 		BaseChat: BaseChat{
-			ChatID: chatID,
+			ChatID:   chatID,
+			SendType: sendType,
 		},
-		SendType: sendType,
-		Text:     text,
 	}
+	switch v := message.(type) {
+	case cqcode.Message:
+		mc.Text = v.CQString()
+	case cqcode.Media:
+		mc.Text = cqcode.FormatCQCode(v)
+	case string:
+		mc.Text = v
+	default:
+		mc.Text = fmt.Sprint(v)
+	}
+	return mc
 }
 
 // NewUpdate gets updates since the last Offset.

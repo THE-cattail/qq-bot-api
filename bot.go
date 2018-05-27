@@ -176,10 +176,6 @@ func (bot *BotAPI) debugLog(context string, message ...interface{}) {
 
 func (bot *BotAPI) sendChattable(config Chattable) (Message, error) {
 	v, err := config.values()
-	if bot.Debug && v.Get("message") != "" {
-		t := "[Debug] " + v.Get("message")
-		v.Set("message", t)
-	}
 	if err != nil {
 		return Message{}, err
 	}
