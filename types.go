@@ -25,9 +25,10 @@ type Update struct {
 	UserID        int64       `json:"user_id"`
 	Font          int         `json:"font"`
 	RawMessage    interface{} `json:"message"`
-	AnonymousName string      `json:"anonymous"`
-	AnonymousFlag string      `json:"anonymous_flag"` // Anonymous ID
+	Anonymous     interface{} `json:"anonymous"`
+	AnonymousFlag string      `json:"anonymous_flag"`
 	Event         string      `json:"event"`
+	Notice        string      `json:"notice"`
 	OperatorID    int64       `json:"operator_id"`
 	File          *File       `json:"file"`
 	Flag          string      `json:"flag"`
@@ -63,8 +64,9 @@ type User struct {
 	Unfriendly          bool   `json:"unfriendly"`
 	JoinTimeUnix        int64  `json:"join_time"`
 	LastSentTimeUnix    int64  `json:"last_sent_time"`
-	AnonymousName       string `json:"anonymous"`
-	AnonymousFlag       string `json:"anonymous_flag"` // Anonymous ID
+	AnonymousID         int64  `json:"anonymous_id" anonymous:"id"`
+	AnonymousName       string `json:"anonymous_name" anonymous:"name"`
+	AnonymousFlag       string `json:"anonymous_flag" anonymous:"flag"`
 }
 
 // Group is a group on QQ.
@@ -86,6 +88,9 @@ func (u *User) String() string {
 
 // Name displays a simple text version of a user.
 func (u *User) Name() string {
+	if u.AnonymousName != "" {
+		return u.AnonymousName
+	}
 	if u.Card != "" {
 		return u.Card
 	}

@@ -18,6 +18,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"github.com/catsworld/qq-bot-api/cqcode"
+	"github.com/mitchellh/mapstructure"
 )
 
 // BotAPI allows you to interact with the Coolq HTTP API.
@@ -302,17 +303,37 @@ func (update *Update) ParseRawMessage() {
 	if !ok {
 		text = message.CQString()
 	}
+	var user User
+	if update.Message.IsAnonymous() {
+		anonymousName, ok := update.Anonymous.(string)
+		if !ok {
+			config := &mapstructure.DecoderConfig{
+				Metadata:         nil,
+				Result:           &user,
+				WeaklyTypedInput: true,
+				TagName:          "anonymous",
+			}
+			decoder, _ := mapstructure.NewDecoder(config)
+			decoder.Decode(update.Anonymous)
+		} else {
+			user.AnonymousID = update.UserID
+			user.AnonymousName = anonymousName
+			user.AnonymousFlag = update.AnonymousFlag
+		}
+	}
+	user.ID = update.UserID
 	update.Message = &Message{
 		Message:   &message,
 		MessageID: update.MessageID,
-		From: &User{
-			ID:            update.UserID,
-			AnonymousName: update.AnonymousName,
-			AnonymousFlag: update.AnonymousFlag,
-		},
-		Chat:    &chat,
-		Text:    text,
-		SubType: messageSubType,
+		From:      &user,
+		Chat:      &chat,
+		Text:      text,
+		SubType:   messageSubType,
+	}
+	if update.PostType == "event" {
+		update.Notice = update.Event
+	} else if update.PostType == "notice" {
+		update.Event = update.Notice
 	}
 }
 
