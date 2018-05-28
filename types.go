@@ -2,6 +2,7 @@ package qqbotapi
 
 import (
 	"encoding/json"
+
 	"github.com/catsworld/qq-bot-api/cqcode"
 )
 
@@ -37,6 +38,7 @@ type Update struct {
 // UpdatesChannel is the channel for getting updates.
 type UpdatesChannel <-chan Update
 
+// File is a file.
 type File struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
@@ -65,6 +67,7 @@ type User struct {
 	AnonymousFlag       string `json:"anonymous_flag"` // Anonymous ID
 }
 
+// Group is a group on QQ.
 type Group struct {
 	ID   int64  `json:"group_id"`
 	Name string `json:"group_name"`
@@ -81,6 +84,7 @@ func (u *User) String() string {
 	return p + u.Name()
 }
 
+// Name displays a simple text version of a user.
 func (u *User) Name() string {
 	if u.Card != "" {
 		return u.Card

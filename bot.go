@@ -146,7 +146,7 @@ func (bot *BotAPI) GetMe() (User, error) {
 	return user, nil
 }
 
-// GetMe fetches a stranger's user info.
+// GetStrangerInfo fetches a stranger's user info.
 func (bot *BotAPI) GetStrangerInfo(userID int64) (User, error) {
 	v := url.Values{}
 	v.Add("user_id", strconv.FormatInt(userID, 10))
@@ -367,10 +367,10 @@ func (bot *BotAPI) GetUpdates(config UpdateConfig) ([]Update, error) {
 
 	var updates []Update
 	json.Unmarshal(resp.Data, &updates)
-	for _, update := range updates {
-		update.ParseRawMessage()
+	for i := range updates {
+		updates[i].ParseRawMessage()
 		if config.PreloadUserInfo {
-			bot.PreloadUserInfo(&update)
+			bot.PreloadUserInfo(&updates[i])
 		}
 	}
 
@@ -533,7 +533,7 @@ func (bot *BotAPI) RestrictAnonymousChatMember(groupID int64, flag string, durat
 	})
 }
 
-// By RestrictAllChatMembers enabled, only administrators in a group will be able to send messages.
+// RestrictAllChatMembers : By this enabled, only administrators in a group will be able to send messages.
 func (bot *BotAPI) RestrictAllChatMembers(groupID int64, enable bool) (APIResponse, error) {
 	return bot.Do(RestrictAllChatMembersConfig{
 		GroupControlConfig: GroupControlConfig{
@@ -554,7 +554,7 @@ func (bot *BotAPI) PromoteChatMember(groupID int64, userID int64, enable bool) (
 	})
 }
 
-// By EnableAnonymousChat enabled, members in a group will be able to send messages with an anonymous identity.
+// EnableAnonymousChat : By this enabled, members in a group will be able to send messages with an anonymous identity.
 func (bot *BotAPI) EnableAnonymousChat(groupID int64, enable bool) (APIResponse, error) {
 	return bot.Do(EnableAnonymousChatConfig{
 		GroupControlConfig: GroupControlConfig{
@@ -575,7 +575,7 @@ func (bot *BotAPI) SetChatMemberCard(groupID int64, userID int64, card string) (
 	})
 }
 
-// SetChatMemberCard sets a chat member's 专属头衔 in the group.
+// SetChatMemberTitle sets a chat member's 专属头衔 in the group.
 func (bot *BotAPI) SetChatMemberTitle(groupID int64, userID int64, title string, duration time.Duration) (APIResponse, error) {
 	return bot.Do(SetChatMemberTitleConfig{
 		ChatMemberConfig: ChatMemberConfig{
@@ -611,7 +611,7 @@ func (bot *BotAPI) HandleFriendRequest(flag string, approve bool, remark string)
 	})
 }
 
-// HandleFriendRequest handles a group adding request.
+// HandleGroupRequest handles a group adding request.
 //
 // typ: sub_type in Update
 // reason: Reason if you rejects this request.

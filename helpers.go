@@ -4,10 +4,11 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/catsworld/qq-bot-api/cqcode"
 	"io"
 	"io/ioutil"
 	"net/url"
+
+	"github.com/catsworld/qq-bot-api/cqcode"
 )
 
 // NewMessage creates a new Message.
@@ -59,8 +60,8 @@ func NewWebhook(pattern string) WebhookConfig {
 }
 
 const (
-	CacheEnabled  = 1
-	CacheDisabled = 0
+	cacheEnabled  = 1
+	cacheDisabled = 0
 )
 
 // NetResource is a resource located in the Internet.
@@ -70,12 +71,12 @@ type NetResource struct {
 
 // EnableCache enables CQ HTTP's cache feature.
 func (r *NetResource) EnableCache() {
-	r.Cache = CacheEnabled
+	r.Cache = cacheEnabled
 }
 
 // DisableCache forces CQ HTTP download from the URL instead of using cache.
 func (r *NetResource) DisableCache() {
-	r.Cache = CacheDisabled
+	r.Cache = cacheDisabled
 }
 
 // NetImage is an image located in the Internet.
@@ -151,7 +152,7 @@ func NewImageLocal(file string) *cqcode.Image {
 	}
 }
 
-// NewImageLocal formats a record with the file path,
+// NewRecordLocal formats a record with the file path,
 // this requires CQ HTTP runs in the same host with your bot.
 func NewRecordLocal(file string) *cqcode.Record {
 	return &cqcode.Record{
@@ -171,7 +172,7 @@ func NewImageWeb(url *url.URL) *NetImage {
 			FileID: url.String(),
 		},
 		NetResource: &NetResource{
-			Cache: CacheEnabled,
+			Cache: cacheEnabled,
 		},
 	}
 }
@@ -183,7 +184,7 @@ func NewRecordWeb(url *url.URL) *NetRecord {
 			FileID: url.String(),
 		},
 		NetResource: &NetResource{
-			Cache: CacheEnabled,
+			Cache: cacheEnabled,
 		},
 	}
 }

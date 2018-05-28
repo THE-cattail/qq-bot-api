@@ -213,7 +213,7 @@ func (config SetChatMemberCardConfig) values() (url.Values, error) {
 	return v, nil
 }
 
-// SetChatMemberCardConfig contains fields to set members's 专属头衔.
+// SetChatMemberTitleConfig contains fields to set members's 专属头衔.
 type SetChatMemberTitleConfig struct {
 	ChatMemberConfig
 	SpecialTitle string
