@@ -304,7 +304,7 @@ func (update *Update) ParseRawMessage() {
 		text = message.CQString()
 	}
 	var user User
-	if update.Message.IsAnonymous() {
+	if messageSubType == "anonymous" {
 		anonymousName, ok := update.Anonymous.(string)
 		if !ok {
 			config := &mapstructure.DecoderConfig{
