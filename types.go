@@ -28,9 +28,10 @@ type Update struct {
 	Anonymous     interface{} `json:"anonymous"`
 	AnonymousFlag string      `json:"anonymous_flag"`
 	Event         string      `json:"event"`
-	Notice        string      `json:"notice"`
+	NoticeType    string      `json:"notice_type"`
 	OperatorID    int64       `json:"operator_id"`
 	File          *File       `json:"file"`
+	RequestType   string      `json:"request_type"`
 	Flag          string      `json:"flag"`
 	Text          string      `json:"-"` // Known as "message", in a message or request
 	Message       *Message    `json:"-"`
