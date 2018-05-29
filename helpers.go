@@ -3,12 +3,13 @@ package qqbotapi
 import (
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/url"
 
+	"fmt"
 	"github.com/catsworld/qq-bot-api/cqcode"
+	"reflect"
 )
 
 // NewMessage creates a new Message.
@@ -21,15 +22,23 @@ func NewMessage(chatID int64, chatType string, message interface{}) MessageConfi
 			ChatType: chatType,
 		},
 	}
-	switch v := message.(type) {
-	case cqcode.Message:
+	if !reflect.ValueOf(message).IsValid() {
+		return mc
+	}
+	r := reflect.Indirect(reflect.New(reflect.TypeOf(message)))
+	r.Set(reflect.ValueOf(message))
+	sp := r.Addr().Interface()
+	switch v := sp.(type) {
+	case *Message:
+		mc.Text = v.CQString()
+	case *cqcode.Message:
 		mc.Text = v.CQString()
 	case cqcode.Media:
 		mc.Text = cqcode.FormatCQCode(v)
-	case string:
-		mc.Text = v
+	case *string:
+		mc.Text = *v
 	default:
-		mc.Text = fmt.Sprint(v)
+		mc.Text = fmt.Sprint(message)
 	}
 	return mc
 }

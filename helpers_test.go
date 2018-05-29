@@ -1,6 +1,7 @@
 package qqbotapi
 
 import (
+	"encoding/json"
 	"github.com/catsworld/qq-bot-api/cqcode"
 	"net/url"
 	"testing"
@@ -15,5 +16,19 @@ func TestNewImageWeb(t *testing.T) {
 		t.Log("TestNewImageWeb passed")
 	} else {
 		t.Errorf("TestNewImageWeb failed: %v", str)
+	}
+}
+
+func TestNewMessage(t *testing.T) {
+	image := cqcode.Image{
+		FileID: "asjkdfs",
+	}
+	message := NewMessage(10000, "group", image)
+
+	b, _ := json.Marshal(message)
+	if string(b) == `{"ChatID":10000,"ChatType":"group","Text":"[CQ:image,file=asjkdfs,url=]","AutoEscape":false}` {
+		t.Log("TestNewMessage passed")
+	} else {
+		t.Errorf("TestNewMessage failed: %v", string(b))
 	}
 }
