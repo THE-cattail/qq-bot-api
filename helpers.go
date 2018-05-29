@@ -3,12 +3,11 @@ package qqbotapi
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
+	"github.com/catsworld/qq-bot-api/cqcode"
 	"io"
 	"io/ioutil"
 	"net/url"
-
-	"fmt"
-	"github.com/catsworld/qq-bot-api/cqcode"
 	"reflect"
 )
 

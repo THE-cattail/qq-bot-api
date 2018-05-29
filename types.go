@@ -2,7 +2,6 @@ package qqbotapi
 
 import (
 	"encoding/json"
-
 	"github.com/catsworld/qq-bot-api/cqcode"
 	"strconv"
 )

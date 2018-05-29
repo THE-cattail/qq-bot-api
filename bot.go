@@ -3,9 +3,14 @@
 package qqbotapi
 
 import (
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/catsworld/qq-bot-api/cqcode"
+	"github.com/mitchellh/mapstructure"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,12 +18,6 @@ import (
 	"net/url"
 	"strconv"
 	"time"
-
-	"crypto/hmac"
-	"crypto/sha1"
-	"encoding/hex"
-	"github.com/catsworld/qq-bot-api/cqcode"
-	"github.com/mitchellh/mapstructure"
 )
 
 // BotAPI allows you to interact with the Coolq HTTP API.
