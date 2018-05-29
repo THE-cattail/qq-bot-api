@@ -26,7 +26,12 @@ func NewMessage(chatID int64, chatType string, message interface{}) MessageConfi
 	}
 	r := reflect.Indirect(reflect.New(reflect.TypeOf(message)))
 	r.Set(reflect.ValueOf(message))
-	sp := r.Addr().Interface()
+	var sp interface{}
+	if r.Kind() == reflect.Ptr {
+		sp = r.Interface()
+	} else {
+		sp = r.Addr().Interface()
+	}
 	switch v := sp.(type) {
 	case *Message:
 		mc.Text = v.CQString()
