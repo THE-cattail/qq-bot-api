@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/catsworld/qq-bot-api/cqcode"
+	"strconv"
 )
 
 // APIResponse is a response from the Coolq HTTP API with the result
@@ -95,7 +96,10 @@ func (u *User) Name() string {
 	if u.Card != "" {
 		return u.Card
 	}
-	return u.NickName
+	if u.NickName != "" {
+		return u.NickName
+	}
+	return strconv.FormatInt(u.ID, 10)
 }
 
 // Chat contains information about the place a message was sent.
