@@ -329,6 +329,7 @@ func (update *Update) ParseRawMessage() {
 		Text:      text,
 		SubType:   messageSubType,
 	}
+	update.Text = text
 	if update.PostType == "event" {
 		update.NoticeType = update.Event
 	} else if update.PostType == "notice" {
