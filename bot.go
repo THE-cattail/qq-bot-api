@@ -360,10 +360,7 @@ func (bot *BotAPI) PreloadUserInfo(update *Update) {
 }
 
 // GetUpdates fetches updates over long polling.
-// https://github.com/richardchien/coolq-http-api/issues/62
-//
-// Note that long polling is currently unsupported by coolq-http-api, thus this api
-// might be changed in the future. It works with github.com/catsworld/cqhttp-longpoll-server at present.
+// https://github.com/richardchien/cqhttp-ext-long-polling
 //
 // Offset, Limit, and Timeout are optional.
 // To avoid stale items, set Offset to one higher than the previous item.
@@ -401,10 +398,7 @@ func (bot *BotAPI) GetUpdates(config UpdateConfig) ([]Update, error) {
 }
 
 // GetUpdatesChan starts and returns a channel that gets updates over long polling.
-// https://github.com/richardchien/coolq-http-api/issues/62
-//
-// Note that long polling is currently unsupported by coolq-http-api, thus this api
-// might be changed in the future. It works with github.com/catsworld/cqhttp-longpoll-server at present.
+// https://github.com/richardchien/cqhttp-ext-long-polling
 func (bot *BotAPI) GetUpdatesChan(config UpdateConfig) (UpdatesChannel, error) {
 	ch := make(chan Update, bot.Buffer)
 
