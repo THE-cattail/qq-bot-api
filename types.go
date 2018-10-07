@@ -12,6 +12,13 @@ type APIResponse struct {
 	Status  string          `json:"status"`
 	Data    json.RawMessage `json:"data"`
 	RetCode int             `json:"retcode"`
+	Echo    interface{}     `json:"echo"`
+}
+
+type WebSocketRequest struct {
+	Action string                 `json:"action"`
+	Params map[string]interface{} `json:"params"`
+	Echo   interface{}            `json:"echo"`
 }
 
 // Update is an update response, from GetUpdates.
@@ -35,6 +42,7 @@ type Update struct {
 	Flag          string      `json:"flag"`
 	Text          string      `json:"-"` // Known as "message", in a message or request
 	Message       *Message    `json:"-"`
+	Sender        *User       `json:"sender"`
 }
 
 // UpdatesChannel is the channel for getting updates.

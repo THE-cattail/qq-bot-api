@@ -335,6 +335,9 @@ func (update *Update) ParseRawMessage() {
 	} else if update.PostType == "notice" {
 		update.Event = update.NoticeType
 	}
+	if update.Sender != nil {
+		update.Message.From = update.Sender
+	}
 }
 
 // PreloadUserInfo fills in the information in update.Message.From
@@ -387,7 +390,7 @@ func (bot *BotAPI) GetUpdates(config UpdateConfig) ([]Update, error) {
 	json.Unmarshal(resp.Data, &updates)
 	for i := range updates {
 		updates[i].ParseRawMessage()
-		if config.PreloadUserInfo {
+		if config.PreloadUserInfo && updates[i].Sender == nil {
 			bot.PreloadUserInfo(&updates[i])
 		}
 	}
