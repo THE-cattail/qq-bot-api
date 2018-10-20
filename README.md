@@ -1,12 +1,10 @@
-# Golang bindings for the Coolq HTTP API
+# Golang bindings for the CoolQ HTTP API
 
 [![GoDoc](https://godoc.org/github.com/catsworld/qq-bot-api?status.svg)](https://godoc.org/github.com/catsworld/qq-bot-api)
 [![Build Status](https://travis-ci.org/catsworld/qq-bot-api.svg?branch=master)](https://travis-ci.org/catsworld/qq-bot-api)
 
 If you're familiar with [go-telegram-bot-api](https://github.com/go-telegram-bot-api/telegram-bot-api),
 you should quickly get familiar with this. -- Method names and architectures are just like the Telegram Bot API.
-
-Currently it supports HTTP POST as event report method only.
 
 Head through the following examples and [godoc](https://godoc.org/github.com/catsworld/qq-bot-api) will give you a tutorial about how to use this package.
 If you still have problems, look up to the code or open an issue.
