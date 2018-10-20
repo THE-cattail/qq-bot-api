@@ -11,12 +11,14 @@ import (
 	"fmt"
 	"github.com/catsworld/qq-bot-api/cqcode"
 	"github.com/mitchellh/mapstructure"
+	"golang.org/x/net/websocket"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -28,27 +30,47 @@ type BotAPI struct {
 	Buffer      int    `json:"buffer"`
 	APIEndpoint string `json:"api_endpoint"`
 
-	Self   User         `json:"-"`
-	Client *http.Client `json:"-"`
+	Self              User                     `json:"-"`
+	Client            *http.Client             `json:"-"`
+	WSAPIClient       *websocket.Conn          `json:"-"`
+	WSEventClient     *websocket.Conn          `json:"-"`
+	WSPendingRequests map[int]chan APIResponse `json:"-"`
+	WSPendingMux      sync.Mutex               `json:"-"`
+	WSRequestTimeout  time.Duration            `json:"-"`
+	Echo              int                      `json:"-"`
 }
 
 // NewBotAPI creates a new BotAPI instance.
 //
 // token: access_token, api: API Endpoint of Coolq-http, example: http://host:port.
-// secret: the secret key of HMAC SHA1 signature of Coolq-http, won't be validated if left blank.
+// secret: the secret key of HMAC SHA1 signature of Coolq-HTTP, won't be validated if left blank.
 func NewBotAPI(token string, api string, secret string) (*BotAPI, error) {
-	return NewBotAPIWithClient(token, api, secret, &http.Client{})
+	u, err := url.Parse(api)
+	if err != nil {
+		return nil, err
+	}
+	switch u.Scheme {
+	case "wss":
+		fallthrough
+	case "ws":
+		return NewBotAPIWithWSClient(token, api)
+	case "https":
+		fallthrough
+	case "http":
+		return NewBotAPIWithClient(token, api, secret)
+	default:
+		return nil, errors.New("bad api url scheme")
+	}
 }
 
 // NewBotAPIWithClient creates a new BotAPI instance
-// and allows you to pass a http.Client.
 //
-// It requires a token, an API endpoint and a poll endpoint which you
+// It requires a token, an API endpoint and a secret which you
 // set in Coolq HTTP API.
-func NewBotAPIWithClient(token string, api string, secret string, client *http.Client) (*BotAPI, error) {
+func NewBotAPIWithClient(token string, api string, secret string) (*BotAPI, error) {
 	bot := &BotAPI{
 		Token:       token,
-		Client:      client,
+		Client:      &http.Client{},
 		Buffer:      100,
 		APIEndpoint: api,
 		Secret:      secret,
@@ -64,8 +86,84 @@ func NewBotAPIWithClient(token string, api string, secret string, client *http.C
 	return bot, nil
 }
 
+// NewBotAPIWithWSClient creates a new BotAPI instance
+//
+// It requires a token, an API endpoint which you
+// set in Coolq HTTP API.
+func NewBotAPIWithWSClient(token string, api string) (*BotAPI, error) {
+	bot := &BotAPI{
+		Token:       token,
+		Buffer:      100,
+		APIEndpoint: api,
+	}
+	var err error
+	// Dial /api/ ws
+	apiConfig, err := websocket.NewConfig(api+"/api/", "http://localhost/")
+	if err != nil {
+		return nil, errors.New("invalid websocket address")
+	}
+	apiConfig.Header.Add("Authorization", fmt.Sprintf("Token %s", token))
+	bot.WSAPIClient, err = websocket.DialConfig(apiConfig)
+	if err != nil {
+		return nil, errors.New("failed to dial cqhttp api websocket")
+	}
+	bot.debugLog("Dial /api/ ws", "dial cqhttp api websocket success")
+	// Dial /event/ ws
+	eventConfig, err := websocket.NewConfig(api+"/event/", "http://localhost/")
+	if err != nil {
+		return nil, errors.New("invalid websocket address")
+	}
+	eventConfig.Header.Add("Authorization", fmt.Sprintf("Token %s", token))
+	bot.WSEventClient, err = websocket.DialConfig(eventConfig)
+	if err != nil {
+		return nil, errors.New("failed to dial cqhttp event websocket")
+	}
+	bot.debugLog("Dial /event/ ws", "dial cqhttp event websocket success")
+
+	bot.WSPendingRequests = make(map[int]chan APIResponse)
+	bot.WSRequestTimeout = time.Second * 10
+	go func() {
+		for {
+			// get api response
+			resp := APIResponse{}
+			if err := websocket.JSON.Receive(bot.WSAPIClient, &resp); err != nil {
+				bot.debugLog("WS APIResponse", "failed to read apiresponse (%v)", err)
+				continue
+			}
+			e, ok := resp.Echo.(int)
+			if !ok {
+				continue
+			}
+			bot.WSPendingMux.Lock()
+			if ch, ok := bot.WSPendingRequests[e]; ok {
+				ch <- resp
+				close(ch)
+				delete(bot.WSPendingRequests, e)
+			}
+			bot.WSPendingMux.Unlock()
+		}
+	}()
+
+	self, err := bot.GetMe()
+	if err != nil {
+		return nil, err
+	}
+
+	bot.Self = self
+
+	return bot, nil
+}
+
 // MakeRequest makes a request to a specific endpoint with our token.
 func (bot *BotAPI) MakeRequest(endpoint string, params url.Values) (APIResponse, error) {
+	if bot.Client != nil {
+		return bot.makeHTTPRequest(endpoint, params)
+	} else {
+		return bot.makeWSRequest(endpoint, params)
+	}
+}
+
+func (bot *BotAPI) makeHTTPRequest(endpoint string, params url.Values) (APIResponse, error) {
 
 	method := fmt.Sprintf("%s/%s?access_token=%s", bot.APIEndpoint, endpoint, bot.Token)
 
@@ -81,9 +179,7 @@ func (bot *BotAPI) MakeRequest(endpoint string, params url.Values) (APIResponse,
 		return apiResp, err
 	}
 
-	if bot.Debug {
-		log.Printf("%s resp: %s", endpoint, bytes)
-	}
+	bot.debugLog("MakeRequest", "%s resp: %s", endpoint, bytes)
 
 	if apiResp.Status != "ok" {
 		return apiResp, errors.New(apiResp.Status + " " + strconv.Itoa(apiResp.RetCode))
@@ -111,6 +207,42 @@ func (bot *BotAPI) decodeAPIResponse(responseBody io.Reader, resp *APIResponse) 
 	}
 
 	return data, nil
+}
+
+func (bot *BotAPI) makeWSRequest(endpoint string, params url.Values) (APIResponse, error) {
+	bot.Echo++
+	echo := bot.Echo
+	p := make(map[string]interface{})
+	if params != nil {
+		for k, vs := range params {
+			if len(vs) != 0 {
+				p[k] = vs[0]
+			}
+		}
+	}
+	req := WebSocketRequest{
+		Echo:   echo,
+		Action: endpoint,
+		Params: p,
+	}
+	ch := make(chan APIResponse)
+	bot.WSPendingRequests[echo] = ch
+	err := websocket.JSON.Send(bot.WSAPIClient, req)
+	if err != nil {
+		delete(bot.WSPendingRequests, echo)
+		return APIResponse{}, err
+	}
+	t := time.After(bot.WSRequestTimeout)
+	select {
+	case resp := <-ch:
+		return resp, nil
+	case <-t:
+		bot.WSPendingMux.Lock()
+		delete(bot.WSPendingRequests, echo)
+		close(ch)
+		bot.WSPendingMux.Unlock()
+		return APIResponse{}, errors.New("request timeout")
+	}
 }
 
 func (bot *BotAPI) makeMessageRequest(endpoint string, params url.Values) (Message, error) {
@@ -370,6 +502,14 @@ func (bot *BotAPI) PreloadUserInfo(update *Update) {
 // Set Timeout to a large number to reduce requests so you can get updates
 // instantly instead of having to wait between requests.
 func (bot *BotAPI) GetUpdates(config UpdateConfig) ([]Update, error) {
+	if bot.Client != nil {
+		return bot.getUpdatesViaHTTP(config)
+	} else {
+		return bot.getUpdatesViaWebSocket(config)
+	}
+}
+
+func (bot *BotAPI) getUpdatesViaHTTP(config UpdateConfig) ([]Update, error) {
 	v := url.Values{}
 	if config.Offset != 0 {
 		v.Add("offset", strconv.Itoa(config.Offset))
@@ -400,6 +540,18 @@ func (bot *BotAPI) GetUpdates(config UpdateConfig) ([]Update, error) {
 	return updates, nil
 }
 
+func (bot *BotAPI) getUpdatesViaWebSocket(config UpdateConfig) ([]Update, error) {
+	var update Update
+	if err := websocket.JSON.Receive(bot.WSEventClient, &update); err != nil {
+		return nil, err
+	}
+	update.ParseRawMessage()
+	if config.PreloadUserInfo && update.Sender == nil {
+		bot.PreloadUserInfo(&update)
+	}
+	return []Update{update}, nil
+}
+
 // GetUpdatesChan starts and returns a channel that gets updates over long polling.
 // https://github.com/richardchien/cqhttp-ext-long-polling
 func (bot *BotAPI) GetUpdatesChan(config UpdateConfig) (UpdatesChannel, error) {
@@ -423,6 +575,30 @@ func (bot *BotAPI) GetUpdatesChan(config UpdateConfig) (UpdatesChannel, error) {
 	}()
 
 	return ch, nil
+}
+
+// ListenForWebSocket registers a http handler for a websocket and returns a channel that gets updates.
+func (bot *BotAPI) ListenForWebSocket(config WebhookConfig) UpdatesChannel {
+	ch := make(chan Update, bot.Buffer)
+
+	http.Handle(config.Pattern, websocket.Handler(func(ws *websocket.Conn) {
+		var update Update
+		if err := websocket.JSON.Receive(ws, &update); err != nil {
+			bot.debugLog("ListenForWebSocket", "failed to read event (%v)", err)
+			return
+		}
+
+		update.ParseRawMessage()
+		if config.PreloadUserInfo {
+			bot.PreloadUserInfo(&update)
+		}
+
+		bot.debugLog("ListenForWebSocket", update)
+
+		ch <- update
+	}))
+
+	return ch
 }
 
 // ListenForWebhook registers a http handler for a webhook and returns a channel that gets updates.

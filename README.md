@@ -11,7 +11,26 @@ Currently it supports HTTP POST as event report method only.
 Head through the following examples and [godoc](https://godoc.org/github.com/catsworld/qq-bot-api) will give you a tutorial about how to use this package.
 If you still have problems, look up to the code or open an issue.
 
-## Examples
+## Communication Methods
+
+CoolQ HTTP supports several communication methods.
+The table below shows whether this SDK support a method.
+
++ √ means a method supported by both this SDK and CoolQ HTTP.  
++ × means a method supported by CoolQ HTTP but NOT by this SDK.  
++ \- means a method NOT supported by CoolQ HTTP.
+
+
+| Methods | API | Event |
+| --- | --- | --- |
+| HTTP | √ | √ * |
+| WebHook (HTTP Reverse) | - | √ |
+| WebSocket | √ | √ |
+| WebSocket Reverse | × | √ |
+
+\* [CQHTTP LongPolling Plugin](https://github.com/richardchien/cqhttp-ext-long-polling) is required to support this feature.
+
+## Quick Guide
 
 This is a very simple bot that just displays any gotten updates, then replies it to that chat.
 
@@ -26,7 +45,11 @@ func main() {
 
 	u := qqbotapi.NewWebhook("/webhook_endpoint")
 	u.PreloadUserInfo = true
+
+	// use WebHook as event method
 	updates := bot.ListenForWebhook(u)
+	// or if you love WebSocket Reverse
+	// updates := bot.ListenForWebSocket(u)
 	go http.ListenAndServe("0.0.0.0:8443", nil)
 
 	for update := range updates {
@@ -67,6 +90,39 @@ func main() {
 	http.ListenAndServe("0.0.0.0:8443", nil)
 }
 ```
+
+It's as easy as well if you prefer WebSocket or LongPolling for event method.
+
+```go
+func main() {
+	// whether to use WebSocket of LongPolling depends on the address
+	// to use WebSocket, the address should be something like "ws://localhost:6700"
+	bot, err := qqbotapi.NewBotAPI("MyCoolqHttpToken", "http://localhost:5700", "CQHTTP_SECRET")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bot.Debug = true
+
+	u := qqbotapi.NewUpdate(0)
+	u.PreloadUserInfo = true
+	updates, err := bot.GetUpdatesChan(u)
+	
+	for update := range updates {
+		if update.Message == nil {
+			continue
+		}
+
+		log.Printf("[%s] %s", update.Message.From.String(), update.Message.Text)
+
+		msg := qqbotapi.NewMessage(update.Message.Chat.ID, update.Message.Chat.Type, update.Message.Text)
+		bot.Send(msg)
+	}
+}
+```
+
+
+## Messages
 
 Update.Message.Message is a group of Media, defined in package cqcode.
 
