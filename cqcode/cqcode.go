@@ -12,9 +12,13 @@ import (
 	"strings"
 )
 
-// StrictCommand indicates that whether a command must start with "/".
+// StrictCommand indicates that whether a command must start with a specified command prefix, default to "/".
 // See function #Command
 var StrictCommand = false
+
+// CommandPrefix is the prefix to identify a message as a command.
+// See function #Command
+var CommandPrefix = "/"
 
 // A Message is a sort of Media.
 type Message []Media
@@ -246,34 +250,35 @@ func ParseMessageFromMessageSegments(segs []MessageSegment) Message {
 }
 
 // IsCommand indicates whether a Message is a command.
-// If StrictCommand is true, only messages start with "/" will be regard as command.
+// If #StrictCommand is true, only messages start with #CommandPrefix will be regard as command.
 func (m *Message) IsCommand() bool {
 	str := m.CQString()
 	return IsCommand(str)
 }
 
 // Command parses a command message and returns the command with command arguments.
-// In a StrictCommand mode, the initial "/" in a command will be stripped off.
+// In a StrictCommand mode, the initial #CommandPrefix in a command will be stripped off.
 func (m *Message) Command() (cmd string, args []string) {
 	str := m.CQString()
 	return Command(str)
 }
 
 // IsCommand indicates whether a string is a command.
-// If StrictCommand is true, only strings start with "/" will be regard as command.
+// If #StrictCommand is true, only strings start with #CommandPrefix will be regard as command.
 func IsCommand(str string) bool {
 	if len(str) == 0 {
 		return false
 	}
-	if StrictCommand && str[:1] != "/" {
+	if StrictCommand && (len(str) < len(CommandPrefix) || str[:len(CommandPrefix)] != CommandPrefix) {
 		return false
 	}
 	return true
 }
 
 // Command parses a command string and returns the command with command arguments.
-// In a StrictCommand mode, the initial "/" in a command will be stripped off.
+// In a StrictCommand mode, the initial #CommandPrefix in a command will be stripped off.
 func Command(str string) (cmd string, args []string) {
+	lcp := len(CommandPrefix)
 	str = strings.Replace(str, `\\`, `\0x5c`, -1)
 	str = strings.Replace(str, `\"`, `\0x22`, -1)
 	str = strings.Replace(str, `\'`, `\0x27`, -1)
@@ -282,10 +287,10 @@ func Command(str string) (cmd string, args []string) {
 		return
 	}
 	if StrictCommand {
-		if strs[0][:1] != "/" {
+		if len(strs[0]) < lcp || strs[0][:lcp] != CommandPrefix {
 			return
 		}
-		cmd = strs[0][1:]
+		cmd = strs[0][lcp:]
 	} else {
 		cmd = strs[0]
 	}

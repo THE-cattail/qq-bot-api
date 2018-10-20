@@ -93,12 +93,14 @@ There are also some useful command helpers.
 			continue
 		}
 
-		// If this is true, a valid command must start with "/", false by default.
+		// If this is true, a valid command must start with a command prefix (default to "/"), false by default.
 		cqcode.StrictCommand = true
+		// Set command prefix
+		cqcode.CommandPrefix = "/"
 
 		if update.Message.IsCommand() {
 			// cmd string, args []string
-			// In a StrictCommand mode, the beginning "/" will be stripped off.
+			// In a StrictCommand mode, the command prefix will be stripped off.
 			cmd, args := update.Message.Command()
 
 			// Note that cmd and args is still media
