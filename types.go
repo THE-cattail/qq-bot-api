@@ -23,6 +23,7 @@ type WebSocketRequest struct {
 
 // Update is an update response, from GetUpdates.
 type Update struct {
+	Time          int64       `json:"time"`
 	PostType      string      `json:"post_type"`
 	MessageType   string      `json:"message_type"`
 	SubType       string      `json:"sub_type"`
