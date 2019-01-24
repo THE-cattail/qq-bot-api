@@ -93,7 +93,7 @@ It's as easy as well if you prefer WebSocket or LongPolling for event method.
 
 ```go
 func main() {
-	// whether to use WebSocket of LongPolling depends on the address
+	// whether to use WebSocket or LongPolling depends on the address
 	// to use WebSocket, the address should be something like "ws://localhost:6700"
 	bot, err := qqbotapi.NewBotAPI("MyCoolqHttpToken", "http://localhost:5700", "CQHTTP_SECRET")
 	if err != nil {
