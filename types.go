@@ -32,7 +32,7 @@ type Update struct {
 	DiscussID     int64       `json:"discuss_id"`
 	UserID        int64       `json:"user_id"`
 	Font          int         `json:"font"`
-	RawMessage    interface{} `json:"message"`
+	RawMessage    interface{} `json:"message"` // Could be string or array, depends on configuration of coolq-http-api
 	Anonymous     interface{} `json:"anonymous"` // This field type is for backward-compatibility and might get changed, see #11
 	AnonymousFlag string      `json:"anonymous_flag"` // This field is deprecated and will get removed, see #11
 	Event         string      `json:"event"`
@@ -41,8 +41,8 @@ type Update struct {
 	File          *File       `json:"file"`
 	RequestType   string      `json:"request_type"`
 	Flag          string      `json:"flag"`
-	Text          string      `json:"-"` // Known as "message", in a message or request
-	Message       *Message    `json:"-"`
+	Text          string      `json:"-"` // Message with CQCode
+	Message       *Message    `json:"-"` // Message parsed
 	Sender        *User       `json:"sender"`
 }
 

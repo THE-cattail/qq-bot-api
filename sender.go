@@ -33,7 +33,7 @@ func (sender *FlatSender) Send() (Message, error) {
 
 func (sender *FlatSender) ImageBase64(file interface{}) *FlatSender  {
 	img, err := NewImageBase64(file)
-	if err != nil {
+	if err == nil {
 		sender.cache = append(sender.cache, img)
 	}
 	return sender
@@ -41,7 +41,7 @@ func (sender *FlatSender) ImageBase64(file interface{}) *FlatSender  {
 
 func (sender *Sender) RecordBase64(file interface{}, magic bool) (Message, error)  {
 	rec, err := NewRecordBase64(file)
-	if err != nil {
+	if err == nil {
 		rec.Magic = magic
 		sender.cache = append(sender.cache, rec)
 	}
@@ -107,6 +107,14 @@ func (sender *FlatSender) Face(faceID int) *FlatSender {
 		FaceID: faceID,
 	}
 	sender.cache = append(sender.cache, &t)
+	return sender
+}
+
+func (sender *FlatSender) FaceByName(faceName string) *FlatSender {
+	t, err := cqcode.NewFaceFromName(faceName)
+	if err == nil {
+		sender.cache = append(sender.cache, t)
+	}
 	return sender
 }
 

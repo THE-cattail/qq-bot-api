@@ -57,13 +57,12 @@ func main() {
 
 		log.Printf("[%s] %s", update.Message.From.String(), update.Message.Text)
 
-		msg := qqbotapi.NewMessage(update.Message.Chat.ID, update.Message.Chat.Type, update.Message.Text)
-		bot.Send(msg)
+		bot.SendMessage(update.Message.Chat.ID, update.Message.Chat.Type, update.Message.Text)
 	}
 }
 ```
 
-If you need to utilize a sync response, you may use a slightly different method.
+If you need to utilize a sync response, it will be slightly different.
 
 ```go
 func main() {
@@ -89,7 +88,7 @@ func main() {
 }
 ```
 
-It's as easy as well if you prefer WebSocket or LongPolling for event method.
+It's as easy as well if you prefer WebSocket or LongPolling as event method.
 
 ```go
 func main() {
@@ -113,8 +112,7 @@ func main() {
 
 		log.Printf("[%s] %s", update.Message.From.String(), update.Message.Text)
 
-		msg := qqbotapi.NewMessage(update.Message.Chat.ID, update.Message.Chat.Type, update.Message.Text)
-		bot.Send(msg)
+		bot.SendMessage(update.Message.Chat.ID, update.Message.Chat.Type, update.Message.Text)
 	}
 }
 ```
@@ -171,27 +169,36 @@ There are also some useful command helpers.
 	}
 ```
 
-The easiest way to send message is to use a chain api.
+## Send Messages
+
+The easiest way to send a message is to use a chained api.
 
 ```go
 	// Send a text-img message
-	bot.NewMessage(10000000, "group").
+	m, err := bot.NewMessage(10000000, "group").
 		At("1232332333").
 		Text("嘤嘤嘤").
 		NewLine().
+		FaceByName("调皮").
 		Text("这是一个测试").
 		ImageBase64("img.jpg").
 		Send()
+
+	// Withdraw that message
+	if err == nil {
+		bot.DeleteMessage(m.MessageID)
+	}
 
 	// Send a stand-alone message (No need to call Send())
 	bot.NewMessage(10000000, "private").
 		Dice()
 ```
 
-Media types defined in package cqcode can be sent directly.
+You can also use bot.SendMessage.
 
 ```go
-	// Send a text message
+	// All media types defined in package cqcode can be sent directly.
+	// e.g. Send a text message
 	bot.SendMessage(10000000, "group", cqcode.Text{
 		Text: "[<- These will be encoded ->]",
 	})
@@ -204,49 +211,35 @@ Media types defined in package cqcode can be sent directly.
 		Style:     1,
 		Title:     "位置分享",
 	})
-```
 
-You can also send a message that contains a number of media.
-
-```go
+	// Send a message that contains a number of media.
 	message := make(cqcode.Message, 0)
 	message.Append(&cqcode.At{QQ: "all"})
 	message.Append(&cqcode.Text{Text:" 大家起来嗨"})
 	face, _ := cqcode.NewFaceFromName("调皮")
 	message.Append(face)
 	bot.SendMessage(10000000, "group", message)
-```
 
-In addition to manually declaring media variables,
-there are some helpers that help you format images or records.
-
-```go
+	// To send an image or a record, you may use a helper function.
 	// Format a base64-encoded image (Recommended)
 	image1, err := qqbotapi.NewImageBase64("/path/to/image.jpg")
 
-	// Format an image in a file://path/to/image.jpg format. You should only use this when CQ HTTP and your bot are in the same host.
-	image2 := qqbotapi.NewImageLocal("/path/to/image.jpg")
-
 	// Format an image in the web.
 	u, err := url.Parse("https://img.rikako.moe/i/D1D.jpg")
+	image2 := qqbotapi.NewImageWeb(u)
+	image2.DisableCache()
+
+	// Format a local image if CQHTTP and your bot are under the same host
+	// Have a look at https://github.com/catsworld/qq-bot-api/issues/11 if you do want to use this.
+	u, err = url.Parse("file:///tmp/D1D.jpg")
 	image3 := qqbotapi.NewImageWeb(u)
-	image3.DisableCache()
 ```
 
-SendMessage returns a message with a message id.
-
-```go
-	m, err := bot.SendMessage(10000000, "group", "aaaaaa")
-	if err == nil {
-		bot.DeleteMessage(m.MessageID)
-	}
-```
-
-Instead of using shortcuts like bot.SendMessage,
-you can manually use the function bot.Send and bot.Do with a config.
+Or you can manually use the function bot.Send and bot.Do with a config.
 You should find this quite familiar if you have once developed a Telegram bot.
+
 ```go
-	// Alternaive to the code above
+	// Alternaive to bot.SendMessage and bot.DeleteMessage
 	message := qqbotapi.NewMessage(10000000, "group", "aaaaaa")
 	m, err := bot.Send(message)
 	if err == nil {
