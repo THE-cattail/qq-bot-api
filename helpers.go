@@ -159,6 +159,9 @@ func NewFileBase64(file interface{}) (string, error) {
 
 // NewImageLocal formats an image with the file path,
 // this requires CQ HTTP runs in the same host with your bot.
+//
+// This method is deprecated and will get removed, see #11.
+// Please use NewImageWeb instead.
 func NewImageLocal(file string) *cqcode.Image {
 	return &cqcode.Image{
 		FileID: NewFileLocal(file),
@@ -167,6 +170,9 @@ func NewImageLocal(file string) *cqcode.Image {
 
 // NewRecordLocal formats a record with the file path,
 // this requires CQ HTTP runs in the same host with your bot.
+//
+// This method is deprecated and will get removed, see #11.
+// Please use NewRecordWeb instead.
 func NewRecordLocal(file string) *cqcode.Record {
 	return &cqcode.Record{
 		FileID: NewFileLocal(file),
@@ -174,6 +180,9 @@ func NewRecordLocal(file string) *cqcode.Record {
 }
 
 // NewFileLocal formats a file with the file path, returning the string.
+//
+// This method is deprecated and will get removed, see #11.
+// Please use NewFileWeb instead.
 func NewFileLocal(file string) string {
 	return "file://" + file
 }

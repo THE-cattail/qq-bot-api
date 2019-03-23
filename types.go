@@ -33,10 +33,10 @@ type Update struct {
 	UserID        int64       `json:"user_id"`
 	Font          int         `json:"font"`
 	RawMessage    interface{} `json:"message"`
-	Anonymous     interface{} `json:"anonymous"`
-	AnonymousFlag string      `json:"anonymous_flag"`
+	Anonymous     interface{} `json:"anonymous"` // This field type is for backward-compatibility and might get changed, see #11
+	AnonymousFlag string      `json:"anonymous_flag"` // This field is deprecated and will get removed, see #11
 	Event         string      `json:"event"`
-	NoticeType    string      `json:"notice_type"`
+	NoticeType    string      `json:"notice_type"` // This field is deprecated and will get removed, see #11
 	OperatorID    int64       `json:"operator_id"`
 	File          *File       `json:"file"`
 	RequestType   string      `json:"request_type"`

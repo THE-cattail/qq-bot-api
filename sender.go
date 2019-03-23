@@ -48,12 +48,16 @@ func (sender *Sender) RecordBase64(file interface{}, magic bool) (Message, error
 	return sender.Send()
 }
 
+// This method is deprecated and will get removed, see #11.
+// Please use ImageWeb instead.
 func (sender *FlatSender) ImageLocal(file string) *FlatSender  {
 	img := NewImageLocal(file)
 	sender.cache = append(sender.cache, img)
 	return sender
 }
 
+// This method is deprecated and will get removed, see #11.
+// Please use RecordWeb instead.
 func (sender *Sender) RecordLocal(file string, magic bool) (Message, error)  {
 	rec := NewRecordLocal(file)
 	rec.Magic = magic
