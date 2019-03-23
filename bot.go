@@ -683,6 +683,11 @@ func (bot *BotAPI) SendMessage(chatID int64, chatType string, message interface{
 	return bot.Send(NewMessage(chatID, chatType, message))
 }
 
+// NewMessage sends message to a chat.
+func (bot *BotAPI) NewMessage(chatID int64, chatType string) *Sender {
+	return NewSender(bot, chatID, chatType)
+}
+
 // DeleteMessage deletes a message in a chat.
 func (bot *BotAPI) DeleteMessage(messageID int64) (APIResponse, error) {
 	return bot.Do(DeleteMessageConfig{

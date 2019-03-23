@@ -11,11 +11,11 @@ func TestNewImageWeb(t *testing.T) {
 	u, _ := url.Parse("https://img.rikako.moe/i/D1D.jpg")
 	img := NewImageWeb(u)
 	img.DisableCache()
-	str := cqcode.FormatCQCode(img)
-	if str == "[CQ:image,file=https://img.rikako.moe/i/D1D.jpg,url=,cache=0]" {
+	msg := NewMessage(123, "whatever", img)
+	if msg.Text == "[CQ:image,file=https://img.rikako.moe/i/D1D.jpg,url=,cache=0]" {
 		t.Log("TestNewImageWeb passed")
 	} else {
-		t.Errorf("TestNewImageWeb failed: %v", str)
+		t.Errorf("TestNewImageWeb failed: %v", msg.Text)
 	}
 }
 

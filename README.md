@@ -171,6 +171,23 @@ There are also some useful command helpers.
 	}
 ```
 
+The easiest way to send message is to use a chain api.
+
+```go
+	// Send a text-img message
+	bot.NewMessage(10000000, "group").
+		At("1232332333").
+		Text("嘤嘤嘤").
+		NewLine().
+		Text("这是一个测试").
+		ImageBase64("img.jpg").
+		Send()
+
+	// Send a stand-alone message (No need to call Send())
+	bot.NewMessage(10000000, "private").
+		Dice()
+```
+
 Media types defined in package cqcode can be sent directly.
 
 ```go
