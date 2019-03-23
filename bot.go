@@ -38,6 +38,7 @@ type BotAPI struct {
 	WSPendingMux      sync.Mutex               `json:"-"`
 	WSRequestTimeout  time.Duration            `json:"-"`
 	Echo              int                      `json:"-"`
+	EchoMux           sync.Mutex               `json:"-"`
 }
 
 // NewBotAPI creates a new BotAPI instance.
@@ -130,10 +131,11 @@ func NewBotAPIWithWSClient(token string, api string) (*BotAPI, error) {
 				bot.debugLog("WS APIResponse", "failed to read apiresponse (%v)", err)
 				continue
 			}
-			e, ok := resp.Echo.(int)
+			echo, ok := resp.Echo.(float64)
 			if !ok {
 				continue
 			}
+			e := int(echo)
 			bot.WSPendingMux.Lock()
 			if ch, ok := bot.WSPendingRequests[e]; ok {
 				ch <- resp
@@ -210,8 +212,10 @@ func (bot *BotAPI) decodeAPIResponse(responseBody io.Reader, resp *APIResponse) 
 }
 
 func (bot *BotAPI) makeWSRequest(endpoint string, params url.Values) (APIResponse, error) {
+	bot.EchoMux.Lock()
 	bot.Echo++
 	echo := bot.Echo
+	bot.EchoMux.Unlock()
 	p := make(map[string]interface{})
 	if params != nil {
 		for k, vs := range params {
@@ -494,7 +498,7 @@ func (bot *BotAPI) PreloadUserInfo(update *Update) {
 	update.Message.From = &user
 }
 
-// GetUpdates fetches updates over long polling.
+// GetUpdates fetches updates over long polling or websocket.
 // https://github.com/richardchien/cqhttp-ext-long-polling
 //
 // Offset, Limit, and Timeout are optional.
@@ -552,7 +556,7 @@ func (bot *BotAPI) getUpdatesViaWebSocket(config UpdateConfig) ([]Update, error)
 	return []Update{update}, nil
 }
 
-// GetUpdatesChan starts and returns a channel that gets updates over long polling.
+// GetUpdatesChan starts and returns a channel that gets updates over long polling or websocket.
 // https://github.com/richardchien/cqhttp-ext-long-polling
 func (bot *BotAPI) GetUpdatesChan(config UpdateConfig) (UpdatesChannel, error) {
 	ch := make(chan Update, bot.Buffer)
