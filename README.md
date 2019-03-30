@@ -175,7 +175,7 @@ The easiest way to send a message is to use a chained api.
 
 ```go
 	// Send a text-img message
-	m, err := bot.NewMessage(10000000, "group").
+	s := bot.NewMessage(10000000, "group").
 		At("1232332333").
 		Text("嘤嘤嘤").
 		NewLine().
@@ -185,8 +185,8 @@ The easiest way to send a message is to use a chained api.
 		Send()
 
 	// Withdraw that message
-	if err == nil {
-		bot.DeleteMessage(m.MessageID)
+	if s.Err == nil {
+		bot.DeleteMessage(s.Result.MessageID)
 	}
 
 	// Send a stand-alone message (No need to call Send())
