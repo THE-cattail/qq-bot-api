@@ -585,22 +585,51 @@ func (bot *BotAPI) GetUpdatesChan(config UpdateConfig) (UpdatesChannel, error) {
 func (bot *BotAPI) ListenForWebSocket(config WebhookConfig) UpdatesChannel {
 	ch := make(chan Update, bot.Buffer)
 
-	http.Handle(config.Pattern, websocket.Handler(func(ws *websocket.Conn) {
-		var update Update
-		if err := websocket.JSON.Receive(ws, &update); err != nil {
-			bot.debugLog("ListenForWebSocket", "failed to read event (%v)", err)
-			return
-		}
+	server := websocket.Server{
+		Handshake: func(c *websocket.Config, r *http.Request) error {
+			if bot.Token != "" {
+				token := r.Header.Get("Authorization")[len("Token "):]
+				if token != bot.Token {
+					return errors.New("Invalid access token")
+				}
+			}
+			return nil
+		},
+		Handler:   func(ws *websocket.Conn) {
+			connectionClose := make(chan bool)
 
-		update.ParseRawMessage()
-		if config.PreloadUserInfo {
-			bot.PreloadUserInfo(&update)
-		}
+			go func() {
+				for {
+					select {
+					case <-time.After(20 * time.Second):
+						ws.PayloadType = byte(0x9)
+						ws.Write([]byte("keepalive"))
+					case <-connectionClose:
+						return
+					}
+				}
+			}()
 
-		bot.debugLog("ListenForWebSocket", update)
+			for {
+				var update Update
+				err := websocket.JSON.Receive(ws, &update)
+				if err != nil {
+					bot.debugLog("ListenForWebSocket", "failed to read event (%v)", err)
+					connectionClose <- true
+					ws.Close()
+					return
+				}
+				update.ParseRawMessage()
+				if config.PreloadUserInfo {
+					bot.PreloadUserInfo(&update)
+				}
+				bot.debugLog("ListenForWebSocket", update)
+				ch <- update
+			}
+		},
+	}
 
-		ch <- update
-	}))
+	http.Handle(config.Pattern, server)
 
 	return ch
 }
