@@ -117,6 +117,45 @@ func main() {
 }
 ```
 
+## Event Emitter
+
+If you come from [Python](https://github.com/richardchien/python-cqhttp)/[JavaScript](https://github.com/momocow/node-cq-websocket),
+you'll be probably looking for this feature.
+We at here provide it as a helper that you may choose to use or not on your taste.
+
+```go
+var bot *qqbotapi.BotAPI
+
+func Log(update qqbotapi.Update) {
+	log.Printf("[%s] %s", update.Message.From.String(), update.Message.Text)
+}
+
+func Echo(update qqbotapi.Update) {
+	bot.SendMessage(update.Message.Chat.ID, update.Message.Chat.Type, update.Message.Text)
+}
+
+func main() {
+	var err error
+	bot, err = qqbotapi.NewBotAPI("MyCoolqHttpToken", "http://localhost:5700", "CQHTTP_SECRET")
+	if err != nil {
+		log.Fatal(err)
+	}
+	u := qqbotapi.NewWebhook("/webhook_endpoint")
+	updates := bot.ListenForWebhook(u)
+	go http.ListenAndServe("0.0.0.0:8443", nil)
+
+	ev := qqbotapi.NewEv(updates)
+	// function Echo will get triggered on receiving an update with
+	// PostType `message`, MessageType `group` and SubType `normal`
+	ev.On("message.group.normal")(Echo)
+	// function Log will get triggered on receiving an update with
+	// PostType `message`
+	ev.On("message")(Log)
+
+	// keep main thread alive
+	<-make(chan bool)
+}
+```
 
 ## Messages
 
