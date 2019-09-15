@@ -3,30 +3,34 @@
 [![GoDoc](https://godoc.org/github.com/catsworld/qq-bot-api?status.svg)](https://godoc.org/github.com/catsworld/qq-bot-api)
 [![Build Status](https://travis-ci.org/catsworld/qq-bot-api.svg?branch=master)](https://travis-ci.org/catsworld/qq-bot-api)
 
-If you're familiar with [go-telegram-bot-api](https://github.com/go-telegram-bot-api/telegram-bot-api),
-you should quickly get familiar with this. -- Method names and architectures are just like the Telegram Bot API.
+This package is a golang SDK for [CoolQ HTTP API](https://cqhttp.cc).
+You can develop a QQ Bot that works based on CoolQ and CoolQ HTTP API plugin, with golang and this package.
+
+The architectures and method names in this package are mainly inspired by [go-telegram-bot-api](https://github.com/go-telegram-bot-api/telegram-bot-api).
+Meanwhile, we provide a couple of features like event emitter and chained api, inspired by other SDKs of CQHTTP.
+In most cases, this package gives you a friendly experience of developing bots in golang.
+You'll find it easy to navigate to this package, if you have once worked with [go-telegram-bot-api](https://github.com/go-telegram-bot-api/telegram-bot-api)
+or SDKs of CQHTTP in other languages.
+However, there are still use cases of CQHTTP that we do not cover with a good support ---- by design,
+for example, the scenario of using multiple CoolQ instance with one bot application.
 
 Head through the following examples and [godoc](https://godoc.org/github.com/catsworld/qq-bot-api) will give you a tutorial about how to use this package.
 If you still have problems, look up to the code or open an issue.
 
 ## Communication Methods
 
-CoolQ HTTP supports several communication methods.
-The table below shows whether this SDK support a method.
+CoolQ HTTP API provides several choices of communication method.
+The table below shows whether this SDK supports a kind of method.
 
-+ √ means a method supported by both this SDK and CoolQ HTTP.  
-+ × means a method supported by CoolQ HTTP but NOT by this SDK.  
-+ \- means a method NOT supported by CoolQ HTTP.
-
-
-| Methods | API | Event |
+| Method | API | Event |
 | --- | --- | --- |
 | HTTP | √ | √ * |
-| WebHook (HTTP Reverse) | - | √ |
+| WebHook (i.e. HTTP Reverse) | √ ** | √ |
 | WebSocket | √ | √ |
 | WebSocket Reverse | × | √ |
 
-\* [CQHTTP LongPolling Plugin](https://github.com/richardchien/cqhttp-ext-long-polling) is required to support this feature.
+\* [CQHTTP LongPolling Plugin](https://github.com/richardchien/cqhttp-ext-long-polling) is required to use this feature.  
+\*\* Only limited operations (e.g. reply, approve) are provided by CQHTTP, in response to an event.
 
 ## Quick Guide
 
@@ -44,9 +48,9 @@ func main() {
 	u := qqbotapi.NewWebhook("/webhook_endpoint")
 	u.PreloadUserInfo = true
 
-	// use WebHook as event method
+	// Use WebHook as event method
 	updates := bot.ListenForWebhook(u)
-	// or if you love WebSocket Reverse
+	// Or if you love WebSocket Reverse
 	// updates := bot.ListenForWebSocket(u)
 	go http.ListenAndServe("0.0.0.0:8443", nil)
 
@@ -92,8 +96,8 @@ It's as easy as well if you prefer WebSocket or LongPolling as event method.
 
 ```go
 func main() {
-	// whether to use WebSocket or LongPolling depends on the address
-	// to use WebSocket, the address should be something like "ws://localhost:6700"
+	// Whether to use WebSocket or LongPolling depends on the address.
+	// To use WebSocket, the address should be something like "ws://localhost:6700"
 	bot, err := qqbotapi.NewBotAPI("MyCoolqHttpToken", "http://localhost:5700", "CQHTTP_SECRET")
 	if err != nil {
 		log.Fatal(err)
@@ -145,21 +149,21 @@ func main() {
 	go http.ListenAndServe("0.0.0.0:8443", nil)
 
 	ev := qqbotapi.NewEv(updates)
-	// function Echo will get triggered on receiving an update with
+	// Function Echo will get triggered on receiving an update with
 	// PostType `message`, MessageType `group` and SubType `normal`
 	ev.On("message.group.normal")(Echo)
-	// function Log will get triggered on receiving an update with
+	// Function Log will get triggered on receiving an update with
 	// PostType `message`
 	ev.On("message")(Log)
 
-	// keep main thread alive
+	// Keep main thread alive
 	<-make(chan bool)
 }
 ```
 
 ## Messages
 
-Update.Message.Message is a group of Media, defined in package cqcode.
+`Update.Message.Message` is a group of `Media`, defined in package `cqcode`.
 
 ```go
 	for update := range updates {
@@ -170,13 +174,17 @@ Update.Message.Message is a group of Media, defined in package cqcode.
 		for _, media := range *update.Message.Message {
 			switch m := media.(type) {
 			case *cqcode.Image:
-				fmt.Printf("The message includes an image, id: %s, url: %s", m.FileID, m.URL)
+				fmt.Printf(
+					"The message includes an image, id: %s, url: %s",
+					m.FileID,
+					m.URL,
+				)
 			}
 		}
 	}
 ```
 
-There are also some useful command helpers.
+There are some useful command helpers.
 
 ```go
 	for update := range updates {
@@ -184,7 +192,8 @@ There are also some useful command helpers.
 			continue
 		}
 
-		// If this is true, a valid command must start with a command prefix (default to "/"), false by default.
+		// If this is true, a valid command must start with a command prefix (default to "/"),
+		// false by default.
 		cqcode.StrictCommand = true
 		// Set command prefix
 		cqcode.CommandPrefix = "/"
@@ -194,7 +203,7 @@ There are also some useful command helpers.
 			// In a StrictCommand mode, the command prefix will be stripped off.
 			cmd, args := update.Message.Command()
 
-			// Note that cmd and args is still media
+			// Note that cmd and args are still media
 			cmdMedia, _ := cqcode.ParseMessage(cmd)
 			for _, v := range cmdMedia {
 				switch v.(type) {
@@ -233,7 +242,7 @@ The easiest way to send a message is to use a chained api.
 		Dice()
 ```
 
-You can also use bot.SendMessage.
+You can also use `bot.SendMessage`.
 
 ```go
 	// All media types defined in package cqcode can be sent directly.
@@ -268,17 +277,16 @@ You can also use bot.SendMessage.
 	image2 := qqbotapi.NewImageWeb(u)
 	image2.DisableCache()
 
-	// Format a local image if CQHTTP and your bot are under the same host
-	// Have a look at https://github.com/catsworld/qq-bot-api/issues/11 if you do want to use this.
+	// Format a local image if CQHTTP and your bot are under the same host.
 	u, err = url.Parse("file:///tmp/D1D.jpg")
 	image3 := qqbotapi.NewImageWeb(u)
 ```
 
-Or you can manually use the function bot.Send and bot.Do with a config.
+Or you can manually use the function `bot.Send` and `bot.Do` with a "config".
 You should find this quite familiar if you have once developed a Telegram bot.
 
 ```go
-	// Alternaive to bot.SendMessage and bot.DeleteMessage
+	// An alternative to bot.SendMessage and bot.DeleteMessage
 	message := qqbotapi.NewMessage(10000000, "group", "aaaaaa")
 	m, err := bot.Send(message)
 	if err == nil {
