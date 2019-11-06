@@ -41,6 +41,7 @@ type Update struct {
 	File          *File       `json:"file"`
 	RequestType   string      `json:"request_type"`
 	Flag          string      `json:"flag"`
+	Comment       string      `json:"comment"` // This field is used for Request Event
 	Text          string      `json:"-"` // Message with CQCode
 	Message       *Message    `json:"-"` // Message parsed
 	Sender        *User       `json:"sender"`
