@@ -150,9 +150,9 @@ type RestrictChatMemberConfig struct {
 // method returns CQ HTTP API method name for restricting user.
 func (config RestrictChatMemberConfig) method() string {
 	if config.AnonymousFlag != "" {
-		return "set_group_ban"
+		return "set_group_anonymous_ban"
 	}
-	return "set_group_anonymous_ban"
+	return "set_group_ban"
 }
 
 // values returns url.Values representation of RestrictChatMemberConfig.
